@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /d D:\\\\develp\\\\Fyren)",
+      "Bash(mvn compile *)"
+    ]
+  }
+}
