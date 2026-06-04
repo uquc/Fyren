@@ -39,7 +39,10 @@ public class GameMain {
                 startClient(args);
                 break;
             case "demo":
-                runDemo();
+                runDemo(args);
+                break;
+            case "libgdx-demo":
+                runLibgdxDemo(args);
                 break;
             default:
                 System.err.println("未知模式: " + mode);
@@ -179,59 +182,48 @@ public class GameMain {
     }
 
     /**
-     * 运行本地演示模式（无需网络，单人测试游戏逻辑）
+     * 运行本地演示模式（Swing渲染，双人对战）
      */
-    private static void runDemo() {
+    private static void runDemo(String[] args) {
+        FighterPreset p1Preset = parsePresetArg(args, "--preset", FighterPreset.TAKESHI);
+        FighterPreset p2Preset = parsePresetArg(args, "--preset2", FighterPreset.GOU);
+
         System.out.println("====================================");
-        System.out.println("  Fyren 演示模式 — 本地双人测试");
-        System.out.println("  操作说明:");
-        System.out.println("    玩家1: W/A/S/D 移动, J 拳, K 脚, U 特殊技");
-        System.out.println("    玩家2: ↑/←/↓/→ 移动, 1 拳, 2 脚, 3 特殊技");
-        System.out.println("    输入 'quit' 退出");
+        System.out.println("  Fyren 演示模式 — 本地双人对战");
+        System.out.println("  P1(" + p1Preset.getDisplayName() + "): W/A/S/D 移动, J 拳, K 脚, U 特殊技");
+        System.out.println("  P2(" + p2Preset.getDisplayName() + "): ↑/←/↓/→ 移动, 1 拳, 2 脚, 3 特殊技");
         System.out.println("====================================");
 
-        // 直接使用GameWorld进行本地双人对战
-        com.Fyren.game.GameWorld world = new com.Fyren.game.GameWorld();
-        com.Fyren.sync.FrameSyncManager sync = new com.Fyren.sync.FrameSyncManager(world);
+        com.Fyren.render.DemoGameWindow window = new com.Fyren.render.DemoGameWindow(p1Preset, p2Preset);
+        window.start();
 
-        sync.start();
-
-        // 简单的控制台输入循环
-        java.util.Scanner scanner = new java.util.Scanner(System.in);
-        int frame = 0;
-        while (true) {
-            System.out.print("> ");
-            String input = scanner.nextLine().trim();
-            if ("quit".equalsIgnoreCase(input)) break;
-
-            // 解析输入
-            com.Fyren.sync.InputCommand cmd1 = new com.Fyren.sync.InputCommand(frame, 1);
-            com.Fyren.sync.InputCommand cmd2 = new com.Fyren.sync.InputCommand(frame, 2);
-
-            for (char c : input.toCharArray()) {
-                switch (c) {
-                    case 'w': cmd1.up = true; break;
-                    case 's': cmd1.down = true; break;
-                    case 'a': cmd1.left = true; break;
-                    case 'd': cmd1.right = true; break;
-                    case 'j': cmd1.punch = true; break;
-                    case 'k': cmd1.kick = true; break;
-                    case 'u': cmd1.special = true; break;
-                }
-            }
-
-            sync.receiveRemoteInput(cmd1);
-            sync.receiveRemoteInput(cmd2);
-
-            frame++;
-            System.out.printf("帧%d: P1(%.0f,%.0f HP=%d) P2(%.0f,%.0f HP=%d)\n",
-                    frame,
-                    world.getPlayer1().getX(), world.getPlayer1().getY(), world.getPlayer1().getHealth(),
-                    world.getPlayer2().getX(), world.getPlayer2().getY(), world.getPlayer2().getHealth());
+        // 阻塞直到游戏结束
+        while (!window.getGameWorld().isGameOver()) {
+            try { Thread.sleep(500); } catch (InterruptedException e) { break; }
         }
 
-        sync.stop();
-        System.out.println("演示结束");
+        // 显示结果
+        int winner = window.getGameWorld().getWinnerId();
+        if (winner == 0) {
+            System.out.println(">>> 平局!");
+        } else {
+            System.out.println(">>> P" + winner + " 获胜!");
+        }
+        System.out.println("演示结束 — 关闭窗口退出");
+    }
+
+    /** 从命令行参数解析preset */
+    private static FighterPreset parsePresetArg(String[] args, String flag, FighterPreset defaultPreset) {
+        for (int i = 0; i < args.length - 1; i++) {
+            if (flag.equals(args[i])) {
+                switch (args[i + 1].toLowerCase()) {
+                    case "kage": return FighterPreset.KAGE;
+                    case "takeshi": return FighterPreset.TAKESHI;
+                    case "gou": return FighterPreset.GOU;
+                }
+            }
+        }
+        return defaultPreset;
     }
 
     /**
@@ -268,6 +260,22 @@ public class GameMain {
         }
     }
 
+    /** libGDX 本地双人演示模式 */
+    private static void runLibgdxDemo(String[] args) {
+        FighterPreset p1Preset = parsePresetArg(args, "--preset", FighterPreset.KAGE);
+        FighterPreset p2Preset = parsePresetArg(args, "--preset2", FighterPreset.GOU);
+
+        System.out.println("====================================");
+        System.out.println("  Fyren libGDX 演示模式");
+        System.out.println("  P1(" + p1Preset.getDisplayName() + "): WASD 移动, J 拳, K 脚, U 特殊技");
+        System.out.println("  P2(" + p2Preset.getDisplayName() + "): ↑←↓→ 移动, 1 拳, 2 脚, 3 特殊技");
+        System.out.println("====================================");
+
+        com.Fyren.render.libgdx.FyrenLauncher.main(new String[]{
+            "--mode", "demo", "--preset", p1Preset.name(), "--preset2", p2Preset.name()
+        });
+    }
+
     private static int generatePlayerId() {
         return (int) (System.currentTimeMillis() % 100000);
     }
@@ -277,7 +285,8 @@ public class GameMain {
         System.out.println("用法:");
         System.out.println("  GameMain server [port]          — 启动游戏服务器");
         System.out.println("  GameMain client <ip> [port] [id] — 启动游戏客户端");
-        System.out.println("  GameMain demo                   — 本地双人演示模式");
+        System.out.println("  GameMain demo                   — 本地双人演示模式 (Swing)");
+        System.out.println("  GameMain libgdx-demo            — 本地双人演示模式 (libGDX)");
         System.out.println();
         System.out.println("示例:");
         System.out.println("  GameMain server 9876");

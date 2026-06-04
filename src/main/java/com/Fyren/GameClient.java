@@ -10,6 +10,7 @@ import com.Fyren.util.InputCodec;
 
 import java.net.SocketException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * 游戏客户端 — 整合网络通信、帧同步和游戏逻辑
@@ -47,6 +48,7 @@ public class GameClient {
     // 状态
     private volatile ClientState state = ClientState.IDLE;
     private volatile int opponentId = -1;
+    private volatile int opponentPresetOrdinal = 1; // 默认TAKESHI
     private volatile boolean opponentReady = false;
 
     // 帧计数器（用于输入发送）
@@ -55,6 +57,9 @@ public class GameClient {
 
     // 当前帧的本地输入（由KeyInputHandler设置，由FrameSyncManager回调读取）
     private volatile InputCommand currentLocalInput = null;
+
+    // 线程安全锁 — FrameSyncManager 回滚时持写锁，渲染线程读时持读锁
+    private final ReentrantReadWriteLock worldLock = new ReentrantReadWriteLock();
 
     // 回调
     private GameEventCallback callback;
@@ -134,7 +139,7 @@ public class GameClient {
         setState(ClientState.MATCHING);
 
         MatchRequestPacket req = new MatchRequestPacket(
-                nextSequence(), localPlayerId, playerRating.getRating());
+                nextSequence(), localPlayerId, playerRating.getRating(), preset.ordinal());
         udpClient.sendReliable(req);
 
         System.out.println("[GameClient] 已发送匹配请求 (rating=" + playerRating.getRating() + ")");
@@ -162,8 +167,9 @@ public class GameClient {
 
         setState(ClientState.PLAYING);
 
-        // 初始化游戏世界（角色预设；对手预设临时默认TAKESHI，后续由网络协商）
-        gameWorld.setupPlayers(preset, FighterPreset.TAKESHI);
+        // 初始化游戏世界（使用协商后的双方角色预设）
+        FighterPreset oppPreset = FighterPreset.values()[opponentPresetOrdinal];
+        gameWorld.setupPlayers(preset, oppPreset);
 
         // 初始化帧同步管理器（只创建一次）
         frameSyncManager = new FrameSyncManager(gameWorld);
@@ -299,11 +305,13 @@ public class GameClient {
 
             case MatchResponsePacket.STATUS_MATCHED:
                 this.opponentId = packet.opponentId;
+                this.opponentPresetOrdinal = packet.opponentPresetOrdinal;
                 this.opponentReady = true;
                 setState(ClientState.MATCHED);
 
-                System.out.printf("[GameClient] 匹配成功! 对手: player%d (rating=%d) @ %s:%d\n",
+                System.out.printf("[GameClient] 匹配成功! 对手: player%d (rating=%d) preset=%s @ %s:%d\n",
                         packet.opponentId, packet.opponentRating,
+                        FighterPreset.values()[packet.opponentPresetOrdinal].getDisplayName(),
                         packet.opponentAddress, packet.opponentPort);
 
                 if (callback != null) {
@@ -338,17 +346,13 @@ public class GameClient {
      * 上报比赛结果到服务器
      */
     public void reportResult(int winnerId) {
-        // 可在InputPacket中附带结果信息，或使用专门的结果上报协议
-        // 这里通过状态包携带结果信息
-        StatePacket result = new StatePacket(nextSequence(),
-                gameWorld.getPlayer1().getX(),
-                gameWorld.getPlayer1().getY(),
-                gameWorld.getPlayer1().getHealth(),
-                System.currentTimeMillis());
+        ResultPacket result = new ResultPacket(nextSequence(),
+                localPlayerId, opponentId, winnerId);
         udpClient.sendReliable(result);
 
         setState(ClientState.GAME_OVER);
         if (callback != null) callback.onGameOver(winnerId);
+        System.out.printf("[GameClient] 比赛结果已上报: winner=%d\n", winnerId);
     }
 
     // ========== 工具方法 ==========
@@ -373,6 +377,18 @@ public class GameClient {
     public FighterPreset getPreset() { return preset; }
     public PlayerRating getPlayerRating() { return playerRating; }
     public GameWorld getGameWorld() { return gameWorld; }
+
+    /** 渲染线程安全读取 — 获取读锁后返回 gameWorld，调用方用完须 releaseReadLock() */
+    public GameWorld getGameWorldReadLocked() {
+        worldLock.readLock().lock();
+        return gameWorld;
+    }
+    public void releaseReadLock() { worldLock.readLock().unlock(); }
+
+    /** FrameSyncManager 回滚时使用写锁 */
+    public void acquireWriteLock() { worldLock.writeLock().lock(); }
+    public void releaseWriteLock() { worldLock.writeLock().unlock(); }
+
     public FrameSyncManager getFrameSyncManager() { return frameSyncManager; }
     public UdpClient getUdpClient() { return udpClient; }
 
