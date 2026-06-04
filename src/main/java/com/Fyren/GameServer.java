@@ -3,6 +3,7 @@ package com.Fyren;
 import com.Fyren.match.MatchManager;
 import com.Fyren.network.*;
 
+import java.io.IOException;
 import java.net.SocketException;
 
 /**
@@ -25,6 +26,7 @@ public class GameServer {
     private final int port;
     private UdpServer udpServer;
     private MatchManager matchManager;
+    private HttpStatusServer httpStatusServer;
 
     public GameServer(int port) {
         this.port = port;
@@ -44,6 +46,11 @@ public class GameServer {
         udpServer.setOnPacketReceived((packet, session) -> {
             if (packet instanceof MatchRequestPacket) {
                 matchManager.handleMatchRequest((MatchRequestPacket) packet, session);
+            } else if (packet instanceof ResultPacket) {
+                ResultPacket rp = (ResultPacket) packet;
+                System.out.printf("[GameServer] 收到比赛结果: P%d vs P%d, 胜者=%d\n",
+                        rp.player1Id, rp.player2Id, rp.winnerId);
+                reportMatch(rp.player1Id, rp.player2Id, rp.winnerId);
             }
             // 其他类型的包在UdpServer内部处理（INPUT转发、HEARTBEAT等）
         });
@@ -55,9 +62,19 @@ public class GameServer {
         udpServer.start();
         matchManager.start();
 
+        // 启动 HTTP 状态 API
+        try {
+            httpStatusServer = new HttpStatusServer(8080);
+            httpStatusServer.setOnlinePlayers(udpServer.getClients().size());
+            httpStatusServer.start();
+        } catch (IOException e) {
+            System.err.println("[GameServer] HTTP 状态服务启动失败: " + e.getMessage());
+        }
+
         System.out.println("====================================");
         System.out.println("  Fyren 格斗游戏服务器已启动");
-        System.out.println("  监听端口: " + port);
+        System.out.println("  UDP 游戏端口: " + port);
+        System.out.println("  HTTP 状态端口: 8080");
         System.out.println("  输入 'stop' 停止服务器");
         System.out.println("====================================");
     }
@@ -67,6 +84,7 @@ public class GameServer {
      */
     public void stop() {
         System.out.println("[GameServer] 正在停止服务器...");
+        if (httpStatusServer != null) httpStatusServer.stop();
         if (matchManager != null) matchManager.stop();
         if (udpServer != null) udpServer.stop();
         System.out.println("[GameServer] 服务器已停止");
@@ -78,6 +96,9 @@ public class GameServer {
     public void reportMatch(int player1Id, int player2Id, int winnerId) {
         if (matchManager != null) {
             matchManager.reportMatchResult(player1Id, player2Id, winnerId);
+        }
+        if (httpStatusServer != null) {
+            httpStatusServer.incrementMatches();
         }
     }
 
