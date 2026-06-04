@@ -128,6 +128,14 @@ public class Fighter {
             return;
         }
 
+        // 冲刺
+        if (cmd.dashForward && tryDash(1)) {
+            return;
+        }
+        if (cmd.dashBackward && tryDash(-1)) {
+            return;
+        }
+
         // 防御
         if (cmd.down) {
             isBlocking = true;
@@ -253,7 +261,7 @@ public class Fighter {
 
     // ========== 冲刺系统 ==========
 
-    public boolean tryDash(int direction) {
+    private boolean tryDash(int direction) {
         if (dashCharges <= 0 || isDashing || actionState == ActionState.STUN) return false;
         if (actionState != ActionState.IDLE) return false;
 

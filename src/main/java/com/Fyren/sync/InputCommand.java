@@ -13,6 +13,8 @@ public class InputCommand {
     public boolean punch;
     public boolean kick;
     public boolean special;
+    public boolean dashForward;
+    public boolean dashBackward;
 
     public InputCommand(int frameNumber, int playerId) {
         this.frameNumber = frameNumber;
@@ -21,7 +23,8 @@ public class InputCommand {
 
     // 判断是否为空操作
     public boolean isEmpty() {
-        return !up && !down && !left && !right && !punch && !kick && !special;
+        return !up && !down && !left && !right && !punch && !kick && !special
+                && !dashForward && !dashBackward;
     }
 
     @Override
@@ -33,6 +36,8 @@ public class InputCommand {
                 up == other.up && down == other.down &&
                 left == other.left && right == other.right &&
                 punch == other.punch && kick == other.kick &&
-                special == other.special;
+                special == other.special &&
+                dashForward == other.dashForward &&
+                dashBackward == other.dashBackward;
     }
 }

@@ -14,7 +14,9 @@ import com.Fyren.sync.InputCommand;
  *   bit 4: punch
  *   bit 5: kick
  *   bit 6: special
- *   bit 7-31: reserved
+ *   bit 7: dashForward
+ *   bit 8: dashBackward
+ *   bit 9-31: reserved
  */
 public final class InputCodec {
 
@@ -26,6 +28,8 @@ public final class InputCodec {
     private static final int FLAG_PUNCH   = 1 << 4;  // 0x10
     private static final int FLAG_KICK    = 1 << 5;  // 0x20
     private static final int FLAG_SPECIAL = 1 << 6;  // 0x40
+    private static final int FLAG_DASH_FORWARD  = 1 << 7;  // 0x80
+    private static final int FLAG_DASH_BACKWARD = 1 << 8;  // 0x100
 
     private InputCodec() {} // 工具类，禁止实例化
 
@@ -44,7 +48,9 @@ public final class InputCodec {
         if (cmd.right)   flags |= FLAG_RIGHT;
         if (cmd.punch)   flags |= FLAG_PUNCH;
         if (cmd.kick)    flags |= FLAG_KICK;
-        if (cmd.special) flags |= FLAG_SPECIAL;
+        if (cmd.special)      flags |= FLAG_SPECIAL;
+        if (cmd.dashForward)  flags |= FLAG_DASH_FORWARD;
+        if (cmd.dashBackward) flags |= FLAG_DASH_BACKWARD;
 
         // 将playerId和frameNumber打包到timestamp中
         // 高32位: playerId, 低32位: frameNumber
@@ -73,7 +79,9 @@ public final class InputCodec {
         cmd.right   = (flags & FLAG_RIGHT) != 0;
         cmd.punch   = (flags & FLAG_PUNCH) != 0;
         cmd.kick    = (flags & FLAG_KICK) != 0;
-        cmd.special = (flags & FLAG_SPECIAL) != 0;
+        cmd.special      = (flags & FLAG_SPECIAL) != 0;
+        cmd.dashForward  = (flags & FLAG_DASH_FORWARD) != 0;
+        cmd.dashBackward = (flags & FLAG_DASH_BACKWARD) != 0;
 
         return cmd;
     }
@@ -90,7 +98,9 @@ public final class InputCodec {
         if (cmd.right)   flags |= FLAG_RIGHT;
         if (cmd.punch)   flags |= FLAG_PUNCH;
         if (cmd.kick)    flags |= FLAG_KICK;
-        if (cmd.special) flags |= FLAG_SPECIAL;
+        if (cmd.special)      flags |= FLAG_SPECIAL;
+        if (cmd.dashForward)  flags |= FLAG_DASH_FORWARD;
+        if (cmd.dashBackward) flags |= FLAG_DASH_BACKWARD;
         return flags;
     }
 
@@ -105,7 +115,9 @@ public final class InputCodec {
         cmd.right   = (flags & FLAG_RIGHT) != 0;
         cmd.punch   = (flags & FLAG_PUNCH) != 0;
         cmd.kick    = (flags & FLAG_KICK) != 0;
-        cmd.special = (flags & FLAG_SPECIAL) != 0;
+        cmd.special      = (flags & FLAG_SPECIAL) != 0;
+        cmd.dashForward  = (flags & FLAG_DASH_FORWARD) != 0;
+        cmd.dashBackward = (flags & FLAG_DASH_BACKWARD) != 0;
         return cmd;
     }
 }

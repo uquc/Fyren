@@ -50,24 +50,14 @@ public class SwingGameWindow extends JFrame {
         setVisible(true);
 
         renderTimer = new Timer(16, e -> {
-            // 1. 采样输入
+            // 1. 采样输入（含冲刺标志）
             InputCommand cmd = keyInputHandler.sample(0);
             client.setCurrentLocalInput(cmd);
 
-            // 2. 冲刺检测
-            if (keyInputHandler.consumeDashForward()) {
-                var fighter = client.getGameWorld().getPlayer1();
-                if (fighter != null) fighter.tryDash(1);
-            }
-            if (keyInputHandler.consumeDashBackward()) {
-                var fighter = client.getGameWorld().getPlayer1();
-                if (fighter != null) fighter.tryDash(-1);
-            }
-
-            // 3. 发送输入到对手
+            // 2. 发送输入到对手
             client.sendInputToOpponent(cmd);
 
-            // 4. 重绘
+            // 3. 重绘
             gamePanel.repaint();
         });
         renderTimer.start();
