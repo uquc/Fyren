@@ -23,6 +23,9 @@ public class MatchManager {
     // 玩家评分数据
     private final ConcurrentHashMap<Integer, PlayerRating> playerRatings = new ConcurrentHashMap<>();
 
+    // 玩家角色预设（匹配请求时存储，匹配成功时转发）
+    private final ConcurrentHashMap<Integer, Integer> playerPresets = new ConcurrentHashMap<>();
+
     // 序列号生成
     private int sequenceCounter = 0;
 
@@ -57,6 +60,9 @@ public class MatchManager {
         int playerId = packet.playerId;
         int rating = packet.playerRating;
 
+        // 存储角色预设
+        playerPresets.put(playerId, packet.presetOrdinal);
+
         // 确保玩家评分数据存在
         playerRatings.computeIfAbsent(playerId, k -> new PlayerRating(playerId, rating));
 
@@ -76,7 +82,7 @@ public class MatchManager {
 
         // 通知取消
         MatchResponsePacket response = new MatchResponsePacket(
-                nextSequence(), MatchResponsePacket.STATUS_CANCELLED, 0, 0, "", 0);
+                nextSequence(), MatchResponsePacket.STATUS_CANCELLED, 0, 0, "", 0, 0);
         server.sendToPlayer(response, playerId);
     }
 
@@ -96,25 +102,31 @@ public class MatchManager {
             return;
         }
 
-        // 通知玩家1
+        // 获取双方角色预设
+        int p1Preset = playerPresets.getOrDefault(p1.playerId, 1);
+        int p2Preset = playerPresets.getOrDefault(p2.playerId, 1);
+
+        // 通知玩家1（告知对手P2的信息，包括P2的preset）
         MatchResponsePacket resp1 = new MatchResponsePacket(
                 nextSequence(),
                 MatchResponsePacket.STATUS_MATCHED,
                 p2.playerId,
                 p2.rating,
                 session2.address != null ? session2.address.getHostString() : "",
-                session2.address != null ? session2.address.getPort() : 0
+                session2.address != null ? session2.address.getPort() : 0,
+                p2Preset
         );
         server.sendReliableTo(resp1, session1.address);
 
-        // 通知玩家2
+        // 通知玩家2（告知对手P1的信息，包括P1的preset）
         MatchResponsePacket resp2 = new MatchResponsePacket(
                 nextSequence(),
                 MatchResponsePacket.STATUS_MATCHED,
                 p1.playerId,
                 p1.rating,
                 session1.address != null ? session1.address.getHostString() : "",
-                session1.address != null ? session1.address.getPort() : 0
+                session1.address != null ? session1.address.getPort() : 0,
+                p1Preset
         );
         server.sendReliableTo(resp2, session2.address);
 

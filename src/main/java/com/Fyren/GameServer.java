@@ -111,12 +111,18 @@ public class GameServer {
 
     public static void main(String[] args) {
         int port = DEFAULT_PORT;
-        if (args.length > 0) {
-            try {
-                port = Integer.parseInt(args[0]);
-            } catch (NumberFormatException e) {
-                System.err.println("无效的端口号: " + args[0]);
-                System.exit(1);
+        boolean daemon = false;
+
+        for (String arg : args) {
+            if ("--daemon".equals(arg) || "-d".equals(arg)) {
+                daemon = true;
+            } else {
+                try {
+                    port = Integer.parseInt(arg);
+                } catch (NumberFormatException e) {
+                    System.err.println("无效参数: " + arg);
+                    System.exit(1);
+                }
             }
         }
 
@@ -124,27 +130,36 @@ public class GameServer {
         try {
             server.start();
 
-            // 简单的控制台输入处理
-            java.util.Scanner scanner = new java.util.Scanner(System.in);
-            while (true) {
-                String cmd = scanner.nextLine().trim();
-                if ("stop".equalsIgnoreCase(cmd) || "quit".equalsIgnoreCase(cmd)) {
-                    break;
-                } else if ("status".equalsIgnoreCase(cmd)) {
-                    System.out.println("活跃客户端: " + server.getUdpServer().getClients().size());
-                    System.out.println("匹配队列: " + server.getMatchManager().getMatchmaker().getQueueSize());
-                    System.out.println("活跃会话: " + server.getUdpServer().getGameSessions().size());
-                } else if (cmd.startsWith("mmr ")) {
-                    try {
-                        int playerId = Integer.parseInt(cmd.substring(4));
-                        com.Fyren.match.PlayerRating rating = server.getMatchManager().getPlayerRating(playerId);
-                        if (rating != null) {
-                            System.out.println(rating);
-                        } else {
-                            System.out.println("未找到玩家" + playerId);
+            // 注册 shutdown hook 确保 stop() 被调用
+            Runtime.getRuntime().addShutdownHook(new Thread(server::stop));
+
+            if (daemon) {
+                System.out.println("[GameServer] 守护进程模式，使用 Ctrl+C 或 taskkill 停止");
+                // 无限期等待，shutdown hook 负责清理
+                Thread.currentThread().join();
+            } else {
+                // 交互式控制台输入处理
+                java.util.Scanner scanner = new java.util.Scanner(System.in);
+                while (true) {
+                    String cmd = scanner.nextLine().trim();
+                    if ("stop".equalsIgnoreCase(cmd) || "quit".equalsIgnoreCase(cmd)) {
+                        break;
+                    } else if ("status".equalsIgnoreCase(cmd)) {
+                        System.out.println("活跃客户端: " + server.getUdpServer().getClients().size());
+                        System.out.println("匹配队列: " + server.getMatchManager().getMatchmaker().getQueueSize());
+                        System.out.println("活跃会话: " + server.getUdpServer().getGameSessions().size());
+                    } else if (cmd.startsWith("mmr ")) {
+                        try {
+                            int playerId = Integer.parseInt(cmd.substring(4));
+                            com.Fyren.match.PlayerRating rating = server.getMatchManager().getPlayerRating(playerId);
+                            if (rating != null) {
+                                System.out.println(rating);
+                            } else {
+                                System.out.println("未找到玩家" + playerId);
+                            }
+                        } catch (Exception e) {
+                            System.out.println("用法: mmr <playerId>");
                         }
-                    } catch (Exception e) {
-                        System.out.println("用法: mmr <playerId>");
                     }
                 }
             }
@@ -152,6 +167,8 @@ public class GameServer {
         } catch (SocketException e) {
             System.err.println("无法启动服务器: " + e.getMessage());
             e.printStackTrace();
+        } catch (InterruptedException e) {
+            // daemon 模式被中断
         } finally {
             server.stop();
         }

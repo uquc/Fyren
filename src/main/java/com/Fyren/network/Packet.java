@@ -15,7 +15,8 @@ public abstract class Packet {
         HEARTBEAT(3),  // 心跳
         MATCH_REQ(4),  // 匹配请求
         MATCH_RES(5),  // 匹配结果
-        ACK(6);        // 确认包
+        ACK(6),        // 确认包
+        RESULT(7);     // 比赛结果
 
         public final int code;
         Type(int code) { this.code = code; }
@@ -51,6 +52,7 @@ public abstract class Packet {
             case MATCH_REQ: return MatchRequestPacket.fromBuffer(buf, seq);
             case MATCH_RES: return MatchResponsePacket.fromBuffer(buf, seq);
             case ACK: return AckPacket.fromBuffer(buf, seq);
+            case RESULT: return ResultPacket.fromBuffer(buf, seq);
             default: return null;
         }
     }

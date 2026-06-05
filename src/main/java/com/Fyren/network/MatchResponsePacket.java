@@ -18,9 +18,11 @@ public class MatchResponsePacket extends Packet {
     public int opponentRating;     // 对手MMR（匹配成功时有效）
     public String opponentAddress; // 对手IP地址
     public int opponentPort;       // 对手UDP端口
+    public int opponentPresetOrdinal; // 对手角色预设(FighterPreset.ordinal)
 
     public MatchResponsePacket(int sequence, int matchStatus, int opponentId,
-                               int opponentRating, String opponentAddress, int opponentPort) {
+                               int opponentRating, String opponentAddress, int opponentPort,
+                               int opponentPresetOrdinal) {
         this.type = Type.MATCH_RES;
         this.sequence = sequence;
         this.matchStatus = matchStatus;
@@ -28,13 +30,14 @@ public class MatchResponsePacket extends Packet {
         this.opponentRating = opponentRating;
         this.opponentAddress = opponentAddress;
         this.opponentPort = opponentPort;
+        this.opponentPresetOrdinal = opponentPresetOrdinal;
     }
 
     /**
      * 创建一个"等待中"的响应
      */
     public static MatchResponsePacket waiting(int sequence) {
-        return new MatchResponsePacket(sequence, STATUS_WAITING, 0, 0, "", 0);
+        return new MatchResponsePacket(sequence, STATUS_WAITING, 0, 0, "", 0, 0);
     }
 
     /**
@@ -52,7 +55,9 @@ public class MatchResponsePacket extends Packet {
         String address = new String(addrBytes);
 
         int port = buf.getInt();
-        return new MatchResponsePacket(sequence, status, opponentId, opponentRating, address, port);
+        int opponentPresetOrdinal = buf.getInt();
+        return new MatchResponsePacket(sequence, status, opponentId, opponentRating,
+                address, port, opponentPresetOrdinal);
     }
 
     @Override
@@ -67,11 +72,12 @@ public class MatchResponsePacket extends Packet {
         buf.put(addrBytes);
 
         buf.putInt(opponentPort);
+        buf.putInt(opponentPresetOrdinal);
     }
 
     @Override
     protected int getPayloadSize() {
         int addrLen = opponentAddress != null ? opponentAddress.getBytes().length : 0;
-        return 16 + addrLen; // 4*3(int) + 4(addrLen) + addrBytes + 4(port)
+        return 20 + addrLen; // 4*4(int) + 4(addrLen) + addrBytes + 4(port) + 4(presetOrdinal)
     }
 }

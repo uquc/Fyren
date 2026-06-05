@@ -20,6 +20,9 @@ public class GamePanel extends JPanel {
     private static final int HEALTH_BAR_WIDTH = 300;
     private static final int HEALTH_BAR_HEIGHT = 20;
     private static final int HEALTH_BAR_Y = 60;
+    private static final int MARGIN_X = 80;          // 屏幕边缘留白
+    private static final float MIN_SCREEN_DIST = 150f; // 两人最近屏幕距离
+    private static final float MAX_SCREEN_DIST = 680f; // 两人最远屏幕距离
 
     public GamePanel(GameWorld gameWorld, int localPlayerId) {
         this.gameWorld = gameWorld;
@@ -42,22 +45,40 @@ public class GamePanel extends JPanel {
         g2d.setColor(Color.DARK_GRAY);
         g2d.drawLine(0, GROUND_Y, PANEL_WIDTH, GROUND_Y);
 
-        // 火柴人
-        float p1ScreenX = 200;
-        float p2ScreenX = 760;
+        // 世界坐标 → 屏幕坐标映射
+        float worldCenter = (p1.getX() + p2.getX()) / 2f;
+        float worldDist = Math.abs(p2.getX() - p1.getX());
+
+        // 屏幕距离：随世界距离缩放，但限制在合理范围
+        float scale = 1.0f;
+        if (worldDist > 500) scale = MAX_SCREEN_DIST / worldDist;
+        else if (worldDist < 200) scale = MIN_SCREEN_DIST / worldDist;
+
+        float screenCenter = PANEL_WIDTH / 2f;
+        float p1ScreenX = screenCenter + (p1.getX() - worldCenter) * scale;
+        float p2ScreenX = screenCenter + (p2.getX() - worldCenter) * scale;
+
+        // 钳制在屏幕边缘内
+        p1ScreenX = Math.max(MARGIN_X, Math.min(PANEL_WIDTH - MARGIN_X, p1ScreenX));
+        p2ScreenX = Math.max(MARGIN_X, Math.min(PANEL_WIDTH - MARGIN_X, p2ScreenX));
+
         StickFigureRenderer.drawFighter(g2d, p1, p1ScreenX, GROUND_Y);
         StickFigureRenderer.drawFighter(g2d, p2, p2ScreenX, GROUND_Y);
 
-        // 攻击框调试可视化
+        // 攻击框调试可视化（屏幕坐标直接基于 Fighter 的世界偏移映射）
         if (p1.isAttacking()) {
             Rectangle ab = p1.getAttackBox();
-            int ax = (int)(p1ScreenX + (p1.isFacingRight() ? 10 : -60));
-            StickFigureRenderer.drawAttackBox(g2d, new Rectangle(ax, GROUND_Y - 40, ab.width, ab.height));
+            if (ab.width > 0) {
+                float abScreenX = p1ScreenX + (p1.isFacingRight() ? p1.getPreset().getHitboxWidth() / 2f : -p1.getPreset().getHitboxWidth() / 2f - ab.width);
+                StickFigureRenderer.drawAttackBox(g2d, new Rectangle((int)abScreenX, GROUND_Y - ab.height, ab.width, ab.height));
+            }
         }
         if (p2.isAttacking()) {
             Rectangle ab = p2.getAttackBox();
-            int ax = (int)(p2ScreenX + (p2.isFacingRight() ? 10 : -60));
-            StickFigureRenderer.drawAttackBox(g2d, new Rectangle(ax, GROUND_Y - 40, ab.width, ab.height));
+            if (ab.width > 0) {
+                float abScreenX = p2ScreenX + (p2.isFacingRight() ? p2.getPreset().getHitboxWidth() / 2f : -p2.getPreset().getHitboxWidth() / 2f - ab.width);
+                StickFigureRenderer.drawAttackBox(g2d, new Rectangle((int)abScreenX, GROUND_Y - ab.height, ab.width, ab.height));
+            }
         }
 
         // 血量条
