@@ -264,8 +264,7 @@ Swing mode (legacy, retained):
 - `target/deploy.zip` (57MB, jre-minimal + fat JAR) ✅
 - `deploy-ecs.ps1` ✅  
 
-Last commit: `0b563b3 feat: JWT双Token认证 + Redis集成 + Docker容器化`
-**本次变更:** ~20 files — game core GWT compat, GWT module/launcher/scripts, render adapters, CLAUDE.md
+Last commit: `902038e feat: GWT/WebGL build pipeline + game core GWT compat + ECS deploy update`
 
 ### Next session
 - 推送本次变更 (git commit + push)
