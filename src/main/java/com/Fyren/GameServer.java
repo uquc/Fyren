@@ -1,7 +1,12 @@
 package com.Fyren;
 
+import com.Fyren.auth.AuthHttpServer;
+import com.Fyren.auth.AuthService;
+import com.Fyren.auth.JwtTokenProvider;
+import com.Fyren.auth.middleware.AuthMiddleware;
 import com.Fyren.match.MatchManager;
 import com.Fyren.network.*;
+import com.Fyren.redis.RedisService;
 
 import java.io.IOException;
 import java.net.SocketException;
@@ -27,6 +32,8 @@ public class GameServer {
     private UdpServer udpServer;
     private MatchManager matchManager;
     private HttpStatusServer httpStatusServer;
+    private RedisService redisService;
+    private AuthHttpServer authHttpServer;
 
     public GameServer(int port) {
         this.port = port;
@@ -36,6 +43,15 @@ public class GameServer {
      * 启动服务器
      */
     public void start() throws SocketException {
+        // 初始化 Redis
+        redisService = new RedisService();
+        redisService.init();
+
+        // 初始化 JWT + Auth
+        JwtTokenProvider jwtProvider = new JwtTokenProvider();
+        AuthService authService = new AuthService(redisService, jwtProvider);
+        AuthMiddleware authMiddleware = new AuthMiddleware(jwtProvider);
+
         // 启动UDP服务器
         udpServer = new UdpServer(port);
 
@@ -51,6 +67,17 @@ public class GameServer {
                 System.out.printf("[GameServer] 收到比赛结果: P%d vs P%d, 胜者=%d\n",
                         rp.player1Id, rp.player2Id, rp.winnerId);
                 reportMatch(rp.player1Id, rp.player2Id, rp.winnerId);
+                // 更新 MMR 到 Redis
+                if (redisService != null && redisService.isAvailable()) {
+                    try {
+                        com.Fyren.match.PlayerRating r1 = matchManager.getPlayerRating(rp.player1Id);
+                        com.Fyren.match.PlayerRating r2 = matchManager.getPlayerRating(rp.player2Id);
+                        if (r1 != null) redisService.updateMmr(rp.player1Id, r1.getRating());
+                        if (r2 != null) redisService.updateMmr(rp.player2Id, r2.getRating());
+                    } catch (Exception ex) {
+                        // 非关键路径，忽略
+                    }
+                }
             }
             // 其他类型的包在UdpServer内部处理（INPUT转发、HEARTBEAT等）
         });
@@ -66,15 +93,26 @@ public class GameServer {
         try {
             httpStatusServer = new HttpStatusServer(8080);
             httpStatusServer.setOnlinePlayers(udpServer.getClients().size());
+            httpStatusServer.setRedisService(redisService);
             httpStatusServer.start();
         } catch (IOException e) {
             System.err.println("[GameServer] HTTP 状态服务启动失败: " + e.getMessage());
+        }
+
+        // 启动认证 API（端口 8081）
+        try {
+            authHttpServer = new AuthHttpServer(8081, authService, authMiddleware);
+            authHttpServer.start();
+        } catch (IOException e) {
+            System.err.println("[GameServer] 认证 API 启动失败: " + e.getMessage());
         }
 
         System.out.println("====================================");
         System.out.println("  Fyren 格斗游戏服务器已启动");
         System.out.println("  UDP 游戏端口: " + port);
         System.out.println("  HTTP 状态端口: 8080");
+        System.out.println("  认证 API 端口: 8081");
+        System.out.println("  Redis: " + (redisService.isAvailable() ? "已连接" : "内存模式"));
         System.out.println("  输入 'stop' 停止服务器");
         System.out.println("====================================");
     }
@@ -84,9 +122,11 @@ public class GameServer {
      */
     public void stop() {
         System.out.println("[GameServer] 正在停止服务器...");
+        if (authHttpServer != null) authHttpServer.stop();
         if (httpStatusServer != null) httpStatusServer.stop();
         if (matchManager != null) matchManager.stop();
         if (udpServer != null) udpServer.stop();
+        if (redisService != null) redisService.close();
         System.out.println("[GameServer] 服务器已停止");
     }
 

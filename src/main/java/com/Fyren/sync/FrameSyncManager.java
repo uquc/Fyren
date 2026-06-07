@@ -134,33 +134,31 @@ public class FrameSyncManager {
      */
     private List<InputCommand> predictInputs(List<InputCommand> inputs, int frameNumber) {
         List<InputCommand> result = new ArrayList<>();
+        java.util.Set<Integer> seenPlayers = new java.util.HashSet<>();
 
         for (InputCommand cmd : inputs) {
-            if (cmd != null && !cmd.isEmpty()) {
+            if (cmd != null) {
                 result.add(cmd);
-                lastKnownInputs.put(cmd.playerId, cmd);
-            } else if (cmd != null) {
-                // cmd不为空但操作为空（空指令），直接使用
-                result.add(cmd);
-                // 不更新lastKnownInputs，保留上一帧的有效输入用于后续预测
-            } else {
-                // cmd为null，说明该玩家输入尚未到达，尝试预测
-                // 从inputs列表顺序无法确定playerId，遍历remoteInputBuffers查找缺失的玩家
-                for (Map.Entry<Integer, InputBuffer> entry : remoteInputBuffers.entrySet()) {
-                    int remotePlayerId = entry.getKey();
-                    InputCommand bufCmd = entry.getValue().getInput(frameNumber);
-                    if (bufCmd.isEmpty() || bufCmd.playerId == -1) {
-                        // 该远程玩家的输入缺失，使用预测
-                        InputCommand predicted = lastKnownInputs.get(remotePlayerId);
-                        if (predicted != null) {
-                            InputCommand copy = new InputCommand(frameNumber, remotePlayerId);
-                            copy.up = predicted.up; copy.down = predicted.down;
-                            copy.left = predicted.left; copy.right = predicted.right;
-                            copy.punch = predicted.punch; copy.kick = predicted.kick;
-                            copy.special = predicted.special;
-                            result.add(copy);
-                        }
-                    }
+                seenPlayers.add(cmd.playerId);
+                if (!cmd.isEmpty()) {
+                    lastKnownInputs.put(cmd.playerId, cmd);
+                }
+                // 空指令不更新 lastKnownInputs，保留上一帧的有效输入用于后续预测
+            }
+        }
+
+        // 预测缺失的远程输入（getInput 返回 null 的玩家）
+        for (Map.Entry<Integer, InputBuffer> entry : remoteInputBuffers.entrySet()) {
+            int remotePlayerId = entry.getKey();
+            if (!seenPlayers.contains(remotePlayerId)) {
+                InputCommand predicted = lastKnownInputs.get(remotePlayerId);
+                if (predicted != null) {
+                    InputCommand copy = new InputCommand(frameNumber, remotePlayerId);
+                    copy.up = predicted.up; copy.down = predicted.down;
+                    copy.left = predicted.left; copy.right = predicted.right;
+                    copy.punch = predicted.punch; copy.kick = predicted.kick;
+                    copy.special = predicted.special;
+                    result.add(copy);
                 }
             }
         }
@@ -172,21 +170,26 @@ public class FrameSyncManager {
      * 检查并执行回滚
      */
     private void checkAndRollback(int currentFrame) {
-        // 当收到远程确认输入时，检查是否与预测一致
+        // 逐帧校验远程确认输入，避免 UDP 乱序导致的跳帧遗漏
         for (Map.Entry<Integer, InputBuffer> entry : remoteInputBuffers.entrySet()) {
-            int remoteFrame = entry.getValue().getCurrentFrame();
-            if (remoteFrame > confirmedFrame) {
-                // 有新的确认帧
-                InputCommand confirmedInput = entry.getValue().getInput(confirmedFrame + 1);
-                InputCommand predictedInput = lastKnownInputs.get(entry.getKey());
+            int remotePlayerId = entry.getKey();
+            InputBuffer remoteBuf = entry.getValue();
 
+            // 处理该远程玩家所有已到达但尚未校验的帧
+            while (confirmedFrame < remoteBuf.getCurrentFrame()) {
+                int checkFrame = confirmedFrame + 1;
+                InputCommand confirmedInput = remoteBuf.getInput(checkFrame);
+                if (confirmedInput == null) break; // 该帧尚未到达，等待
+
+                InputCommand predictedInput = lastKnownInputs.get(remotePlayerId);
                 if (predictedInput != null && !predictedInput.equals(confirmedInput)) {
                     // 预测错误，需要回滚
                     int rollbackFrames = Math.min(currentFrame - confirmedFrame, ROLLBACK_MAX_FRAMES);
                     rollback(currentFrame - rollbackFrames);
+                    return; // 回滚后当前检测上下文失效，直接返回
                 }
 
-                confirmedFrame = Math.max(confirmedFrame, remoteFrame);
+                confirmedFrame++;
             }
         }
     }
@@ -197,19 +200,17 @@ public class FrameSyncManager {
     private void rollback(int targetFrame) {
         System.out.println("回滚到帧: " + targetFrame);
 
-        // 1. 回滚游戏世界状态
+        // 0. 保存当前帧号（rollbackTo 会将其重置为 targetFrame）
+        int originalFrame = gameWorld.getCurrentFrame();
+
+        // 1. 只回滚游戏世界状态——输入缓冲区不删，输入是既成事实
         gameWorld.rollbackTo(targetFrame);
 
-        // 2. 回滚输入缓冲区
-        localInputBuffer.rollbackTo(targetFrame);
-        for (InputBuffer buffer : remoteInputBuffers.values()) {
-            buffer.rollbackTo(targetFrame);
-        }
-
-        // 3. 从目标帧重新模拟
-        for (int frame = targetFrame; frame < gameWorld.getCurrentFrame(); frame++) {
+        // 2. 从目标帧重新模拟（用已记录的输入重跑，缺失的远程输入由 predictInputs 预测）
+        for (int frame = targetFrame; frame < originalFrame; frame++) {
             List<InputCommand> inputs = gatherInputs(frame);
-            gameWorld.update(inputs, frame);
+            List<InputCommand> predicted = predictInputs(inputs, frame);
+            gameWorld.update(predicted, frame);
         }
     }
 

@@ -21,11 +21,21 @@ public class FyrenLauncher {
 
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
-                case "--server": serverIp = args[++i]; mode = "client"; break;
-                case "--port": serverPort = Integer.parseInt(args[++i]); break;
-                case "--preset": preset = FighterPreset.valueOf(args[++i].toUpperCase()); break;
-                case "--preset2": preset2 = FighterPreset.valueOf(args[++i].toUpperCase()); break;
-                case "--mode": mode = args[++i]; break;
+                case "--server":
+                    if (++i >= args.length) { System.err.println("--server 缺少参数"); return; }
+                    serverIp = args[i]; mode = "client"; break;
+                case "--port":
+                    if (++i >= args.length) { System.err.println("--port 缺少参数"); return; }
+                    serverPort = Integer.parseInt(args[i]); break;
+                case "--preset":
+                    if (++i >= args.length) { System.err.println("--preset 缺少参数"); return; }
+                    preset = FighterPreset.valueOf(args[i].toUpperCase()); break;
+                case "--preset2":
+                    if (++i >= args.length) { System.err.println("--preset2 缺少参数"); return; }
+                    preset2 = FighterPreset.valueOf(args[i].toUpperCase()); break;
+                case "--mode":
+                    if (++i >= args.length) { System.err.println("--mode 缺少参数"); return; }
+                    mode = args[i]; break;
             }
         }
 

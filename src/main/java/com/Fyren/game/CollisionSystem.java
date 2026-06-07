@@ -41,31 +41,39 @@ public class CollisionSystem {
         resolveOverlap(p1, p2);
     }
 
-    private void applyHit(Fighter attacker, Fighter defender) {
-        int baseDmg = attacker.getPreset().getBaseDamage();
+    /** 计算攻击者的实际基础伤害（含招式类型修正和冲刺修正） */
+    private int calculateDamage(Fighter attacker) {
+        int dmg = attacker.getPreset().getBaseDamage();
 
         switch (attacker.getActionType()) {
-            case KICK:  baseDmg += 2; break;
-            case THROW: baseDmg -= 3; break;
+            case KICK:  dmg += 2; break;
+            case THROW: dmg -= 3; break;
             case SPECIAL:
                 switch (attacker.getPreset()) {
-                    case KAGE: baseDmg = 12; break;
-                    case TAKESHI: baseDmg = 14; break;
-                    case GOU: baseDmg = 18; break;
+                    case KAGE: dmg = 12; break;
+                    case TAKESHI: dmg = 14; break;
+                    case GOU: dmg = 18; break;
                 }
                 break;
             default: break;
         }
 
         if (attacker.isDashAttacking()) {
-            baseDmg = Math.max(1, baseDmg - 5);
+            dmg = Math.max(1, dmg - 5);
         }
+        return dmg;
+    }
+
+    private void applyHit(Fighter attacker, Fighter defender) {
+        int baseDmg = calculateDamage(attacker);
 
         boolean isThrow = (attacker.getActionType() == Fighter.ActionType.THROW);
+        // 提前计算实际伤害，避免 takeDamage() 清除 isBlocking 后误判
+        int effectiveDmg = defender.isBlocking() && !isThrow ? baseDmg / 2 : baseDmg;
         defender.takeDamage(baseDmg, isThrow);
 
         attacker.onDamageDealt(baseDmg);
-        defender.onDamageTaken(defender.isBlocking() && !isThrow ? baseDmg / 2 : baseDmg);
+        defender.onDamageTaken(effectiveDmg);
 
         // 武·气合掌 击退
         if (attacker.getActionType() == Fighter.ActionType.SPECIAL
@@ -83,17 +91,16 @@ public class CollisionSystem {
     }
 
     private void handleClash(Fighter p1, Fighter p2) {
-        int dmg1 = p1.getPreset().getBaseDamage() / 2;
-        int dmg2 = p2.getPreset().getBaseDamage() / 2;
-
-        if (p1.isDashAttacking()) dmg1 = Math.max(1, dmg1 - 5);
-        if (p2.isDashAttacking()) dmg2 = Math.max(1, dmg2 - 5);
+        int dmg1 = calculateDamage(p1) / 2;
+        int dmg2 = calculateDamage(p2) / 2;
 
         p1.setHealth(p1.getHealth() - dmg2);
         p2.setHealth(p2.getHealth() - dmg1);
         if (p1.getHealth() < 0) p1.setHealth(0);
         if (p2.getHealth() < 0) p2.setHealth(0);
 
+        p1.lastRawDamageReceived = dmg2; // 相杀无防御，实际伤害=原始伤害
+        p2.lastRawDamageReceived = dmg1;
         p1.applyShortStun();
         p2.applyShortStun();
 

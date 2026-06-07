@@ -133,8 +133,19 @@ public class GameWorld {
 
     public Fighter getPlayer1() { return player1; }
     public Fighter getPlayer2() { return player2; }
+
+    /** 获取指定角色的对手 */
+    public Fighter getOpponentOf(Fighter f) {
+        if (f == player1) return player2;
+        if (f == player2) return player1;
+        return null;
+    }
+
     public int getCurrentFrame() { return currentFrame; }
-    public int getLocalPlayerId() { return 1; }
+    private int localPlayerId = 1;
+
+    public int getLocalPlayerId() { return localPlayerId; }
+    public void setLocalPlayerId(int id) { this.localPlayerId = id; }
     public int getTimerSeconds() { return Math.max(0, timerFrames / 60); }
     public int getTimerFrames() { return timerFrames; }
     public boolean isGameOver() { return gameOver; }

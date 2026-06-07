@@ -49,13 +49,13 @@ public class GdxInputHandler extends InputAdapter {
                 if (now - p1LastRightTime <= DASH_TAP_WINDOW_MS) p1DashForwardPending = true;
                 p1LastRightTime = now;
                 break;
-            // P2 双击检测
+            // P2 双击检测 — ← 指向对手=前进, → 背离对手=后退
             case Input.Keys.LEFT:
-                if (now - p2LastLeftTime <= DASH_TAP_WINDOW_MS) p2DashBackwardPending = true;
+                if (now - p2LastLeftTime <= DASH_TAP_WINDOW_MS) p2DashForwardPending = true;
                 p2LastLeftTime = now;
                 break;
             case Input.Keys.RIGHT:
-                if (now - p2LastRightTime <= DASH_TAP_WINDOW_MS) p2DashForwardPending = true;
+                if (now - p2LastRightTime <= DASH_TAP_WINDOW_MS) p2DashBackwardPending = true;
                 p2LastRightTime = now;
                 break;
         }
@@ -90,8 +90,9 @@ public class GdxInputHandler extends InputAdapter {
 
         cmd.up    = Gdx.input.isKeyPressed(Input.Keys.UP);
         cmd.down  = Gdx.input.isKeyPressed(Input.Keys.DOWN);
-        cmd.left  = Gdx.input.isKeyPressed(Input.Keys.LEFT);
-        cmd.right = Gdx.input.isKeyPressed(Input.Keys.RIGHT);
+        // P2 在右侧面朝左：← 指向对手=前进(cmd.right), → 背离对手=后退(cmd.left)
+        cmd.left  = Gdx.input.isKeyPressed(Input.Keys.RIGHT);
+        cmd.right = Gdx.input.isKeyPressed(Input.Keys.LEFT);
         cmd.punch = Gdx.input.isKeyJustPressed(Input.Keys.NUM_1);
         cmd.kick  = Gdx.input.isKeyJustPressed(Input.Keys.NUM_2);
         cmd.special = Gdx.input.isKeyJustPressed(Input.Keys.NUM_3);

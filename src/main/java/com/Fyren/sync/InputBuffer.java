@@ -16,17 +16,20 @@ public class InputBuffer {
     }
 
     /**
-     * 添加输入指令
+     * 添加输入指令，同步更新当前已确认的最高帧号
      */
     public synchronized void addInput(InputCommand cmd) {
         inputs.put(cmd.frameNumber, cmd);
+        if (cmd.frameNumber > currentFrame) {
+            currentFrame = cmd.frameNumber;
+        }
     }
 
     /**
-     * 获取指定帧的输入（可能为空）
+     * 获取指定帧的输入（没有则返回 null）
      */
     public synchronized InputCommand getInput(int frameNumber) {
-        return inputs.getOrDefault(frameNumber, createEmptyCommand(frameNumber));
+        return inputs.get(frameNumber);
     }
 
     /**

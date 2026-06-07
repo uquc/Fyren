@@ -35,6 +35,7 @@ public class Fighter {
 
     // --- 僵直 ---
     private int stunRemaining = 0;
+    int lastRawDamageReceived = 0; // 本帧受到的原始伤害（防御减免前），供 hit-stop 判断用（包内可见）
 
     // --- 冲刺 ---
     private static final int MAX_DASH_CHARGES = 3;
@@ -67,7 +68,7 @@ public class Fighter {
     public Fighter(int id, float x, float y, FighterPreset preset, boolean facingRight) {
         this.id = id;
         this.x = x;
-        this.y = GROUND_Y;
+        this.y = y;
         this.preset = preset;
         this.health = preset.getMaxHealth();
         this.facingRight = facingRight;
@@ -86,6 +87,14 @@ public class Fighter {
         // 重置临时状态
         isAttacking = false;
         isHitFlag = false;
+
+        // 自动面朝对手（除冲刺外）
+        if (!isDashing) {
+            Fighter opponent = world.getOpponentOf(this);
+            if (opponent != null) {
+                facingRight = opponent.getX() > this.x;
+            }
+        }
 
         // 固有时钟：冲刺冷却回复
         if (dashCharges < MAX_DASH_CHARGES) {
@@ -128,11 +137,13 @@ public class Fighter {
             return;
         }
 
-        // 冲刺
-        if (cmd.dashForward && tryDash(1)) {
+        // 冲刺和移动方向以角色面朝为准（非世界绝对方向）
+        float forwardDir = facingRight ? 1f : -1f;
+
+        if (cmd.dashForward && tryDash((int) forwardDir)) {
             return;
         }
-        if (cmd.dashBackward && tryDash(-1)) {
+        if (cmd.dashBackward && tryDash(-(int) forwardDir)) {
             return;
         }
 
@@ -144,13 +155,11 @@ public class Fighter {
         }
         isBlocking = false;
 
-        // 水平移动
+        // 水平移动：left=后退(面朝反方向), right=前进(面朝方向)
         if (cmd.left && !cmd.right) {
-            velocityX = -preset.getBackwardSpeed();
-            facingRight = false;
+            velocityX = -forwardDir * preset.getBackwardSpeed();
         } else if (cmd.right && !cmd.left) {
-            velocityX = preset.getForwardSpeed();
-            facingRight = true;
+            velocityX = forwardDir * preset.getForwardSpeed();
         } else {
             velocityX = 0;
         }
@@ -250,6 +259,9 @@ public class Fighter {
         }
     }
 
+    private static final float WORLD_MIN_X = -300f;
+    private static final float WORLD_MAX_X = 1300f;
+
     private void applyMovement() {
         x += velocityX;
         y += velocityY;
@@ -257,6 +269,9 @@ public class Fighter {
             y = GROUND_Y;
             velocityY = 0;
         }
+        // 软边界：防止无限逃跑，平滑回推而非硬钳制
+        if (x < WORLD_MIN_X) velocityX += 2f;
+        else if (x > WORLD_MAX_X) velocityX -= 2f;
     }
 
     // ========== 冲刺系统 ==========
@@ -319,6 +334,7 @@ public class Fighter {
     // ========== 受伤与僵直 ==========
 
     public void takeDamage(int damage, boolean isThrow) {
+        this.lastRawDamageReceived = damage; // 记录原始伤害（减免前），供 hit-stop 判断
         int actualDamage = damage;
         if (!isThrow && isBlocking) {
             actualDamage = damage / 2;
@@ -340,9 +356,7 @@ public class Fighter {
         this.isBlocking = false;
         this.velocityX = 0;
 
-        if (preset == FighterPreset.GOU) {
-            damageTakenSinceLastSpecial += actualDamage;
-        }
+        // GOU 资源累加统一由 onDamageTaken() 处理，避免重复计数
     }
 
     /** 向后兼容 — takeDamage(int) 默认为非投技 */
@@ -451,6 +465,7 @@ public class Fighter {
     public boolean isBlocking() { return isBlocking; }
     public boolean isInStun() { return actionState == ActionState.STUN; }
     public int getStunRemaining() { return stunRemaining; }
+    public int getLastRawDamageReceived() { return lastRawDamageReceived; }
     public ActionState getActionState() { return actionState; }
     public ActionType getActionType() { return actionType; }
     public int getDashCharges() { return dashCharges; }

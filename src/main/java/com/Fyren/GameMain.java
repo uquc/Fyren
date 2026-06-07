@@ -38,6 +38,12 @@ public class GameMain {
             case "client":
                 startClient(args);
                 break;
+            case "register":
+                runRegister(args);
+                break;
+            case "login":
+                runLogin(args);
+                break;
             case "demo":
                 runDemo(args);
                 break;
@@ -280,17 +286,153 @@ public class GameMain {
         return (int) (System.currentTimeMillis() % 100000);
     }
 
+    /** 注册新用户 */
+    private static void runRegister(String[] args) {
+        if (args.length < 4) {
+            System.err.println("用法: GameMain register <authHost> <username> <password> [authPort]");
+            System.err.println("示例: GameMain register localhost testuser 123456");
+            return;
+        }
+
+        String authHost = args[1];
+        String username = args[2];
+        String password = args[3];
+        int authPort = 8081;
+        if (args.length > 4) {
+            try { authPort = Integer.parseInt(args[4]); } catch (NumberFormatException e) {}
+        }
+
+        System.out.println("正在注册...");
+        GameClient.AuthResult result = GameClient.register(authHost, authPort, username, password);
+        if (result.success) {
+            System.out.println("注册成功!");
+            System.out.println("  userId: " + result.userId);
+            System.out.println("  username: " + result.username);
+            System.out.println("  MMR: " + result.mmr);
+        } else {
+            System.err.println("注册失败: " + result.error);
+        }
+    }
+
+    /** 登录并启动客户端 */
+    private static void runLogin(String[] args) {
+        if (args.length < 4) {
+            System.err.println("用法: GameMain login <authHost> <username> <password> [authPort] [--preset kage|takeshi|gou]");
+            System.err.println("示例: GameMain login localhost testuser 123456 --preset kage");
+            return;
+        }
+
+        String authHost = args[1];
+        String username = args[2];
+        String password = args[3];
+        int authPort = 8081;
+        if (args.length > 4 && !args[4].startsWith("--")) {
+            try { authPort = Integer.parseInt(args[4]); } catch (NumberFormatException e) {}
+        }
+
+        // 解析 preset
+        FighterPreset preset = FighterPreset.TAKESHI;
+        for (int i = 1; i < args.length; i++) {
+            if ("--preset".equals(args[i]) && i + 1 < args.length) {
+                switch (args[i + 1].toLowerCase()) {
+                    case "kage": preset = FighterPreset.KAGE; break;
+                    case "takeshi": preset = FighterPreset.TAKESHI; break;
+                    case "gou": preset = FighterPreset.GOU; break;
+                }
+            }
+        }
+
+        System.out.println("正在登录 " + authHost + ":" + authPort + " ...");
+        GameClient.AuthResult result = GameClient.login(authHost, authPort, username, password);
+        if (!result.success) {
+            System.err.println("登录失败: " + result.error);
+            return;
+        }
+
+        System.out.println("登录成功! userId=" + result.userId + ", username=" + result.username + ", mmr=" + result.mmr);
+        System.out.println("角色: " + preset.getDisplayName());
+
+        // 使用认证返回的 userId 连接游戏服务器
+        String gameHost = args[1]; // 游戏服务器与认证服务器同主机
+        int gamePort = 9876;
+
+        final int playerId = result.userId;
+        final FighterPreset selectedPreset = preset;
+
+        System.out.println("====================================");
+        System.out.println("  Fyren 格斗游戏客户端");
+        System.out.println("  认证用户: " + result.username + " (ID=" + playerId + ")");
+        System.out.println("  游戏服务器: " + gameHost + ":" + gamePort);
+        System.out.println("  角色: " + preset.getDisplayName());
+        System.out.println("====================================");
+
+        GameClient client = new GameClient(gameHost, gamePort, playerId, result.mmr, selectedPreset);
+        client.setTokens(result.accessToken, result.refreshToken);
+        client.setCallback(new GameClient.GameEventCallback() {
+            @Override
+            public void onStateChanged(GameClient.ClientState newState) {
+                System.out.println("[状态] " + newState);
+            }
+
+            @Override
+            public void onMatchFound(int opponentId, int opponentRating) {
+                System.out.println(">>> 找到对手! 对手ID=" + opponentId + ", MMR=" + opponentRating);
+                client.startGame();
+                com.Fyren.render.SwingGameWindow window = new com.Fyren.render.SwingGameWindow(client, playerId, selectedPreset);
+                window.start();
+            }
+
+            @Override
+            public void onGameStart() {
+                System.out.println(">>> 游戏开始!");
+            }
+
+            @Override
+            public void onGameOver(int winnerId) {
+                if (winnerId == playerId) {
+                    System.out.println(">>> 你赢了!");
+                } else if (winnerId == -1) {
+                    System.out.println(">>> 平局!");
+                } else {
+                    System.out.println(">>> 你输了! 胜者: player" + winnerId);
+                }
+            }
+
+            @Override
+            public void onError(Exception e) {
+                System.err.println("[错误] " + e.getMessage());
+            }
+        });
+
+        try {
+            client.connect();
+            client.requestMatch();
+
+            while (client.getState() == GameClient.ClientState.MATCHING ||
+                   client.getState() == GameClient.ClientState.PLAYING) {
+                try { Thread.sleep(100); } catch (InterruptedException e) { break; }
+            }
+        } catch (SocketException e) {
+            System.err.println("无法连接游戏服务器: " + e.getMessage());
+        } finally {
+            client.disconnect();
+        }
+    }
+
     private static void printUsage() {
         System.out.println("Fyren 2D格斗游戏");
         System.out.println("用法:");
-        System.out.println("  GameMain server [port]          — 启动游戏服务器");
-        System.out.println("  GameMain client <ip> [port] [id] — 启动游戏客户端");
-        System.out.println("  GameMain demo                   — 本地双人演示模式 (Swing)");
-        System.out.println("  GameMain libgdx-demo            — 本地双人演示模式 (libGDX)");
+        System.out.println("  GameMain server [port]                   — 启动游戏服务器");
+        System.out.println("  GameMain client <ip> [port] [id]         — 启动游戏客户端（直连）");
+        System.out.println("  GameMain register <host> <user> <pass>   — 注册新用户");
+        System.out.println("  GameMain login <host> <user> <pass>      — 登录并进入匹配");
+        System.out.println("  GameMain demo                            — 本地双人演示模式 (Swing)");
+        System.out.println("  GameMain libgdx-demo                     — 本地双人演示模式 (libGDX)");
         System.out.println();
         System.out.println("示例:");
         System.out.println("  GameMain server 9876");
-        System.out.println("  GameMain client 127.0.0.1 9876");
+        System.out.println("  GameMain register localhost kage_user 123456");
+        System.out.println("  GameMain login localhost kage_user 123456 --preset kage");
         System.out.println("  GameMain demo");
     }
 }

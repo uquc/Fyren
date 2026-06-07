@@ -1,0 +1,48 @@
+# Fyren 格斗游戏 — Docker Compose 编排
+# 启动: docker compose -f docker/docker-compose.yml up -d
+# 停止: docker compose -f docker/docker-compose.yml down
+# 查看日志: docker compose -f docker/docker-compose.yml logs -f
+
+version: "3.8"
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: fyren-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD:-fyren_redis}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-fyren_redis}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  fyren-server:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: fyren-server
+    ports:
+      - "8080:8080"    # HTTP 状态 API
+      - "8081:8081"    # 认证 API
+      - "9876:9876/udp" # UDP 游戏端口
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-fyren_redis}
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+    driver: local

@@ -78,14 +78,15 @@ public class KeyInputHandler implements KeyListener {
         switch (e.getKeyCode()) {
             case KeyEvent.VK_UP: keys.set(IDX_UP); break;
             case KeyEvent.VK_DOWN: keys.set(IDX_DOWN); break;
+            // P2 在右侧面朝左：← 指向对手=前进(IDX_RIGHT), → 背离对手=后退(IDX_LEFT)
             case KeyEvent.VK_LEFT:
-                keys.set(IDX_LEFT);
-                dashBackwardRequested = checkDoubleTap(lastLeftPressTime);
+                keys.set(IDX_RIGHT);
+                dashForwardRequested = checkDoubleTap(lastLeftPressTime);
                 lastLeftPressTime = System.currentTimeMillis();
                 break;
             case KeyEvent.VK_RIGHT:
-                keys.set(IDX_RIGHT);
-                dashForwardRequested = checkDoubleTap(lastRightPressTime);
+                keys.set(IDX_LEFT);
+                dashBackwardRequested = checkDoubleTap(lastRightPressTime);
                 lastRightPressTime = System.currentTimeMillis();
                 break;
             case KeyEvent.VK_1: case KeyEvent.VK_NUMPAD1: keys.set(IDX_PUNCH); break;
@@ -119,8 +120,9 @@ public class KeyInputHandler implements KeyListener {
         switch (e.getKeyCode()) {
             case KeyEvent.VK_UP: keys.clear(IDX_UP); break;
             case KeyEvent.VK_DOWN: keys.clear(IDX_DOWN); break;
-            case KeyEvent.VK_LEFT: keys.clear(IDX_LEFT); break;
-            case KeyEvent.VK_RIGHT: keys.clear(IDX_RIGHT); break;
+            // 与 handleP2KeyPressed 的交换一致
+            case KeyEvent.VK_LEFT: keys.clear(IDX_RIGHT); break;
+            case KeyEvent.VK_RIGHT: keys.clear(IDX_LEFT); break;
             case KeyEvent.VK_1: case KeyEvent.VK_NUMPAD1: keys.clear(IDX_PUNCH); break;
             case KeyEvent.VK_2: case KeyEvent.VK_NUMPAD2: keys.clear(IDX_KICK); break;
             case KeyEvent.VK_3: case KeyEvent.VK_NUMPAD3: keys.clear(IDX_SPECIAL); break;

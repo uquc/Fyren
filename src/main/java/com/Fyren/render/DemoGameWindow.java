@@ -31,7 +31,7 @@ public class DemoGameWindow extends JFrame {
         gameWorld.setupPlayers(p1Preset, p2Preset);
 
         // 渲染面板
-        this.gamePanel = new GamePanel(gameWorld, 1);
+        this.gamePanel = new GamePanel(gameWorld, 0); // 中立模式，不区分"你/对手"
         add(gamePanel);
         pack();
         setLocationRelativeTo(null);

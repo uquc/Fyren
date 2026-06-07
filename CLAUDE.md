@@ -1,4 +1,8 @@
-# CLAUDE.md
+# CLAUDE.md — [role: developer]
+
+**Who I am:** 开发者 Claude。职责：实现功能、修复 Bug、重构、写业务代码。可以修改 `src/main/` 下任何文件。
+
+**Counterpart:** [[tester-claude-md]] — 测试员 Claude 的独立指令集，存储于 memory/。
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -9,8 +13,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 mvn compile -q
 mvn test -q          # JUnit 5 configured, tests in src/test/
 
-# Start server
+# Start server (with Redis, Auth API)
 java -cp target/classes com.Fyren.GameMain server 9876
+
+# Register / Login (auth API must be running on port 8081)
+java -cp target/classes com.Fyren.GameMain register localhost <username> <password>
+java -cp target/classes com.Fyren.GameMain login localhost <username> <password> --preset kage
 
 # Start client (--preset kage|takeshi|gou, default takeshi)
 java -cp target/classes com.Fyren.GameMain client <serverIp> [port] [playerId] --preset kage
@@ -23,17 +31,22 @@ mvn package -q
 java -jar target/Fyren-1.0-SNAPSHOT.jar            # libGDX demo
 java -cp target/Fyren-1.0-SNAPSHOT.jar com.Fyren.GameMain server 9876
 java -cp target/Fyren-1.0-SNAPSHOT.jar com.Fyren.GameMain client <ip> 9876 <id> --preset kage
+java -cp target/Fyren-1.0-SNAPSHOT.jar com.Fyren.GameMain register localhost <user> <pass>
+java -cp target/Fyren-1.0-SNAPSHOT.jar com.Fyren.GameMain login localhost <user> <pass> --preset kage
+
+# Docker
+cd docker && docker compose up -d
 
 # jpackage EXE
 mvn package -q
 jpackage --input target --name Fyren --main-jar Fyren-1.0-SNAPSHOT.jar --main-class com.Fyren.render.libgdx.FyrenLauncher --type exe --win-console --java-options "-XstartOnFirstThread"
 ```
 
-Dependencies: Lombok (provided), JUnit Jupiter 5.10.2 (test), libGDX 1.12.1 (gdx, gdx-backend-lwjgl3, gdx-platform:natives-desktop).
+Dependencies: Lombok (provided), JUnit Jupiter 5.10.2 (test), libGDX 1.12.1 (gdx, gdx-backend-lwjgl3, gdx-platform:natives-desktop), jjwt 0.12.5 (api/impl/jackson), Jedis 5.1.2, jBCrypt 0.4.
 
 ## Architecture
 
-**Fyren** is a 2D fighting game with UDP networking, hidden-MMR matchmaking, lockstep + rollback frame sync, and libGDX rendering. Java 17+, Maven, single jar for both client and server. ~44 source files.
+**Fyren** is a 2D fighting game with UDP networking, hidden-MMR matchmaking, lockstep + rollback frame sync, and libGDX rendering. Java 17+, Maven, single jar for both client and server. ~52 source files.
 
 ```
 com.Fyren
@@ -74,12 +87,24 @@ com.Fyren
 ├── sync/
 │   FrameSyncManager  — lockstep + speculative execution + rollback (max 10 frames)
 │   InputBuffer, InputCommand (7 bools: up/down/left/right/punch/kick/special), InputCodec
+├── auth/               ★ new — JWT双Token认证
+│   ├── AuthHttpServer      — HTTP 认证 API (端口 8081, com.sun.net.httpserver)
+│   ├── AuthService         — 注册/登录/刷新/登出业务逻辑
+│   ├── JwtTokenProvider    — JWT 生成 & 验证 (HMAC-SHA256, 15min access + 7d refresh)
+│   ├── model/              — LoginRequest, RegisterRequest, TokenResponse, UserInfo
+│   └── middleware/
+│       AuthMiddleware      — Bearer token 鉴权拦截器
+├── redis/              ★ new — Redis连接 + 降级内存模式
+│   RedisService        — Jedis连接池, 用户CRUD, Token管理, 排行榜(ZSet), 在线状态
+├── docker/             ★ new — 容器化
+│   Dockerfile          — eclipse-temurin:17-jre-alpine
+│   docker-compose.yml  — Redis 7 + Fyren 服务编排
 ├── match/
 │   Matchmaker (ELO + diffusion window), MatchManager (preset forwarding, MMR update on result)
 ├── util/             InputCodec
-├── GameMain.java     — CLI router: server/client/demo modes, --preset parsing
-├── GameServer.java   — UdpServer + MatchManager + ResultPacket + HttpStatusServer
-└── GameClient.java   — UdpClient + FrameSyncManager + GameWorld, LocalInputProvider injection
+├── GameMain.java     — CLI router: server/client/demo/register/login modes, --preset parsing
+├── GameServer.java   — UdpServer + MatchManager + RedisService + AuthHttpServer + HttpStatusServer
+└── GameClient.java   — UdpClient + FrameSyncManager + GameWorld + auth token methods
 ```
 
 ## libGDX Render Pipeline (current)
@@ -117,7 +142,9 @@ FyrenLauncher (main, CLI) → FyrenGame (ApplicationListener)
 - **Procedural textures** — SpriteRenderer generates limb/head textures at runtime (no sprite sheets needed).
 - **Hit feedback pentology** — screen shake, hit-stop, hit sparks, damage flash, knockback displacement.
 - **GWT/WebGL** — separate compile target (`FyrenGwt.gwt.xml`), demo-only (no java.net.* in browser).
-- **HTTP status API** — HttpStatusServer on port 8080, returns JSON with player count, MMR rankings.
+- **HTTP status API** — HttpStatusServer on port 8080, returns JSON with player count, Redis status, MMR rankings via /leaderboard.
+- **Auth API** — AuthHttpServer on port 8081, JWT双Token机制 (access 15min + refresh 7d), bcrypt密码哈希, refresh token轮换防重放, Redis降级内存模式。
+- **Redis 数据模型** — user:* (Hash), refresh:* (String TTL 7d), blacklist:* (TTL), online:* (TTL 30s), mmr:leaderboard (ZSet)
 - **World→Screen mapping** — screenX = screenCenter + (worldX - worldCenter) * scale, clamped to margins.
 
 ## Known Limitations
@@ -142,6 +169,7 @@ FyrenLauncher (main, CLI) → FyrenGame (ApplicationListener)
 **Security Group** (`sg-bp10gn3btvuod4p9coge`):
 - TCP 80 (HTTP — portfolio website)
 - TCP 8080 (HTTP status API)
+- TCP 8081 (Auth API)
 - UDP 9876 (game server)
 - TCP 22 (SSH)
 - ALL ICMP
@@ -152,6 +180,7 @@ FyrenLauncher (main, CLI) → FyrenGame (ApplicationListener)
 |---------|------|--------|
 | Portfolio website | 80 | ✅ |
 | HTTP status API | 8080 | ✅ |
+| Auth API | 8081 | ✅ (local only, not yet on ECS) |
 | Game server (UDP) | 9876 | ✅ |
 
 **Deployment method:** RDP file transfer + jlink minimal JRE (java.base, java.logging, java.net.http, java.management, jdk.unsupported, jdk.httpserver)
@@ -185,35 +214,37 @@ Swing mode (legacy, retained):
   Swing Timer → GamePanel.repaint() → StickFigureRenderer
 ```
 
-## Current Session (2026-06-05)
+## Current Session (2026-06-07)
 
-**Phases completed:** 5 of 5 (Tasks 1-12 of 12) — ALL DONE 🎉
+**本次完成:** 用户登录模块 — JWT双Token认证 (jjwt 0.12.5)、Redis集成 (Jedis 5.1.2)、Docker容器化 (docker-compose: Redis 7 + Fyren)。
 
-Last commit: `494ab29 feat: 渲染层+战斗系统+Bug修复`
-**Uncommitted changes:** GameServer.java (--daemon), web/index.html (IP placeholder), deploy-ecs.ps1 (new), + render/libgdx/*, network/*, match/*, pom.xml, etc.
+**Phases completed:** Tasks 1-12 + Tasks 13a-13j — ALL DONE ✅
+
+Last commit: `011693c feat: ECS deployment — daemon mode, match result reporting, portfolio site`
+**Uncommitted changes:** ~55 files (libGDX render layer, auth/ JWT, redis/, docker/, pom.xml, GameServer.java, GameMain.java, GameClient.java, HttpStatusServer.java, network/match files, web/index.html, deploy-ecs.ps1)
 
 ### Task Status
 
 | # | Task | Status |
 |---|------|--------|
-| 1 | Dash Bug 修复 | ✅ done |
-| 2 | Maven + libGDX 骨架 | ✅ done |
-| 3 | GameScreen + GdxInputHandler + CameraController | ✅ done |
-| 4 | SpriteRenderer | ✅ done |
-| 5 | HUD + 特效系统 | ✅ done |
-| 6 | FyrenGame 集成 + GameMain 新入口 | ✅ done |
-| 7 | GWT/WebGL 构建目标 | ✅ done |
-| 8 | 服务端 HTTP 状态 API | ✅ done |
-| 9 | 作品展示网站 | ✅ done |
-| 10 | EXE 打包 (jpackage) | ✅ done |
-| 11 | ECS 部署 | ✅ done |
-| 12 | 品质打磨 | ✅ done |
-| 10 | EXE 打包 (jpackage) | ✅ done |
-| 11 | ECS 部署 | 🔄 in progress |
-| 12 | 品质打磨 | ✅ done |
+| 1-12 | 渲染层+战斗系统+ECS部署 (见历史) | ✅ all done |
+| 13a | pom.xml 加依赖 (jjwt, jedis, jbcrypt) | ✅ done |
+| 13b | auth/model/ 4个DTO | ✅ done |
+| 13c | RedisService (Jedis + 内存降级) | ✅ done |
+| 13d | JwtTokenProvider (HMAC-SHA256) | ✅ done |
+| 13e | AuthService (注册/登录/刷新/登出) | ✅ done |
+| 13f | AuthHttpServer (端口8081) | ✅ done |
+| 13g | GameServer 集成 + HttpStatusServer 扩展 (/leaderboard) | ✅ done |
+| 13h | GameClient 登录注册方法 + GameMain CLI | ✅ done |
+| 13i | Dockerfile + docker-compose.yml | ✅ done |
+| 13j | mvn compile + test 验证 | ✅ done |
 
 ### Plan file
-`.claude/plans/cheeky-tickling-twilight.md`
+`.claude/plans/sprightly-chasing-wreath.md`
 
-### Uncommitted files (~44 modified/new)
-All libGDX render files under `render/libgdx/`, plus modified `pom.xml`, `GameMain.java`, `GameServer.java`, `GameClient.java`, network/match files, and new `web/index.html`.
+### Next session
+- 提交所有未提交变更
+- ECS 部署更新版 JAR + Redis + Auth API
+- P2 输入映射 Bug
+- libGDX 网络模式集成 FrameSyncManager
+- GWT/WebGL 浏览器版构建管线

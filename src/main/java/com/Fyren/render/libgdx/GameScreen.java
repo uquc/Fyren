@@ -113,13 +113,14 @@ public class GameScreen {
         int dmg1 = hp1Before - p1.getHealth();
         int dmg2 = hp2Before - p2.getHealth();
 
+        // hit-stop 使用原始伤害（防御减免前）判断轻重击，避免防御时视觉反馈偏弱
         if (dmg1 > 0 && hitEffects != null) {
-            hitEffects.onHit(p1, p2, dmg1);
+            hitEffects.onHit(p1, p2, p1.getLastRawDamageReceived());
             if (particleEffects != null) particleEffects.spawnHitSpark(p1.getX(), p1.getY() + 50);
             if (cameraController != null) cameraController.shake(3f + dmg1 * 0.5f, 0.15f);
         }
         if (dmg2 > 0 && hitEffects != null) {
-            hitEffects.onHit(p2, p1, dmg2);
+            hitEffects.onHit(p2, p1, p2.getLastRawDamageReceived());
             if (particleEffects != null) particleEffects.spawnHitSpark(p2.getX(), p2.getY() + 50);
             if (cameraController != null) cameraController.shake(3f + dmg2 * 0.5f, 0.15f);
         }

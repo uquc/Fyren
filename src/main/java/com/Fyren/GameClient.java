@@ -8,7 +8,13 @@ import com.Fyren.sync.FrameSyncManager;
 import com.Fyren.sync.InputCommand;
 import com.Fyren.util.InputCodec;
 
+import java.io.IOException;
 import java.net.SocketException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -64,6 +70,10 @@ public class GameClient {
     // 回调
     private GameEventCallback callback;
 
+    // 认证 token
+    private String accessToken;
+    private String refreshToken;
+
     // ========== 状态枚举 ==========
 
     public enum ClientState {
@@ -108,6 +118,115 @@ public class GameClient {
         this.preset = preset;
         this.playerRating = new PlayerRating(localPlayerId, initialRating);
         this.gameWorld = new GameWorld();
+    }
+
+    // ========== 认证 ==========
+
+    /** HTTP 登录，获取 JWT token 对 */
+    public static class AuthResult {
+        public final boolean success;
+        public final int userId;
+        public final String username;
+        public final int mmr;
+        public final String accessToken;
+        public final String refreshToken;
+        public final String error;
+
+        private AuthResult(boolean success, int userId, String username, int mmr,
+                           String accessToken, String refreshToken, String error) {
+            this.success = success;
+            this.userId = userId;
+            this.username = username;
+            this.mmr = mmr;
+            this.accessToken = accessToken;
+            this.refreshToken = refreshToken;
+            this.error = error;
+        }
+    }
+
+    /** 向认证服务器注册 */
+    public static AuthResult register(String authHost, int authPort, String username, String password) {
+        try {
+            String body = String.format("{\"username\":\"%s\",\"password\":\"%s\"}",
+                    escapeJson(username), escapeJson(password));
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create("http://" + authHost + ":" + authPort + "/auth/register"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+            HttpClient client = HttpClient.newHttpClient();
+            HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() == 201) {
+                // 手动解析 JSON
+                String r = resp.body();
+                int userId = extractInt(r, "userId");
+                String uname = extractString(r, "username");
+                return new AuthResult(true, userId, uname, 1000, null, null, null);
+            } else {
+                String err = extractString(resp.body(), "error");
+                return new AuthResult(false, 0, null, 0, null, null, err != null ? err : "注册失败");
+            }
+        } catch (Exception e) {
+            return new AuthResult(false, 0, null, 0, null, null, e.getMessage());
+        }
+    }
+
+    /** 向认证服务器登录，返回 token 对 */
+    public static AuthResult login(String authHost, int authPort, String username, String password) {
+        try {
+            String body = String.format("{\"username\":\"%s\",\"password\":\"%s\"}",
+                    escapeJson(username), escapeJson(password));
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create("http://" + authHost + ":" + authPort + "/auth/login"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+            HttpClient client = HttpClient.newHttpClient();
+            HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() == 200) {
+                String r = resp.body();
+                String at = extractString(r, "accessToken");
+                String rt = extractString(r, "refreshToken");
+                int uid = extractInt(r, "userId");
+                String uname = extractString(r, "username");
+                int mmr = extractInt(r, "mmr");
+                return new AuthResult(true, uid, uname, mmr, at, rt, null);
+            } else {
+                String err = extractString(resp.body(), "error");
+                return new AuthResult(false, 0, null, 0, null, null, err != null ? err : "登录失败");
+            }
+        } catch (Exception e) {
+            return new AuthResult(false, 0, null, 0, null, null, e.getMessage());
+        }
+    }
+
+    /** 设置当前会话的 token */
+    public void setTokens(String accessToken, String refreshToken) {
+        this.accessToken = accessToken;
+        this.refreshToken = refreshToken;
+    }
+
+    public String getAccessToken() { return accessToken; }
+
+    // === 简易 JSON 解析（零依赖） ===
+
+    private static String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private static String extractString(String json, String key) {
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile(
+            "\"" + java.util.regex.Pattern.quote(key) + "\"\\s*:\\s*\"([^\"]*)\"");
+        java.util.regex.Matcher m = p.matcher(json);
+        return m.find() ? m.group(1) : null;
+    }
+
+    private static int extractInt(String json, String key) {
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile(
+            "\"" + java.util.regex.Pattern.quote(key) + "\"\\s*:\\s*(-?\\d+)");
+        java.util.regex.Matcher m = p.matcher(json);
+        return m.find() ? Integer.parseInt(m.group(1)) : 0;
     }
 
     // ========== 生命周期 ==========

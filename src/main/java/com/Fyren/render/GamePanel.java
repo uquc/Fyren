@@ -58,10 +58,6 @@ public class GamePanel extends JPanel {
         float p1ScreenX = screenCenter + (p1.getX() - worldCenter) * scale;
         float p2ScreenX = screenCenter + (p2.getX() - worldCenter) * scale;
 
-        // 钳制在屏幕边缘内
-        p1ScreenX = Math.max(MARGIN_X, Math.min(PANEL_WIDTH - MARGIN_X, p1ScreenX));
-        p2ScreenX = Math.max(MARGIN_X, Math.min(PANEL_WIDTH - MARGIN_X, p2ScreenX));
-
         StickFigureRenderer.drawFighter(g2d, p1, p1ScreenX, GROUND_Y);
         StickFigureRenderer.drawFighter(g2d, p2, p2ScreenX, GROUND_Y);
 
@@ -150,6 +146,9 @@ public class GamePanel extends JPanel {
         String text;
         if (winner == 0) {
             text = "DRAW!";
+        } else if (localPlayerId <= 0) {
+            // 中立/观众模式（如 Demo 双人），显示具体胜者
+            text = "P" + winner + " WINS!";
         } else if (winner == localPlayerId) {
             text = "YOU WIN!";
         } else {
