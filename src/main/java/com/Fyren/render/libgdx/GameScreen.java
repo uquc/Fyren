@@ -17,7 +17,7 @@ import java.util.List;
  *
  * 两种模式：
  * - Demo: 直接驱动 GameWorld（本地双人），无网络
- * - Network: 通过 GameClient + FrameSyncManager 驱动（后续 Task 接入）
+ * - Network: 通过 GameClient + FrameSyncManager 驱动
  */
 public class GameScreen {
 
@@ -25,7 +25,7 @@ public class GameScreen {
     private final GdxInputHandler inputHandler;
     private final CameraController cameraController;
 
-    // 渲染组件（Task 4-5 创建，在此之前为 null）
+    // 渲染组件
     private SpriteRenderer spriteRenderer;
     private HudRenderer hudRenderer;
     private HitEffects hitEffects;
@@ -38,8 +38,12 @@ public class GameScreen {
     // 背景渲染
     private final ShapeRenderer bgShapes;
 
-    // 网络模式引用（后续设置）
+    // 网络模式引用
     private com.Fyren.GameClient gameClient = null;
+
+    // 网络模式：上一帧血量（用于命中检测）
+    private int netHp1Before = -1;
+    private int netHp2Before = -1;
 
     // === 工厂方法 ===
 
@@ -64,7 +68,7 @@ public class GameScreen {
         this.bgShapes = new ShapeRenderer();
     }
 
-    // === 公开 setter（渲染组件由外部注入，Task 4-5 完成后使用） ===
+    // === 公开 setter ===
 
     public void setSpriteRenderer(SpriteRenderer r) { this.spriteRenderer = r; }
     public void setHudRenderer(HudRenderer r) { this.hudRenderer = r; }
@@ -113,7 +117,6 @@ public class GameScreen {
         int dmg1 = hp1Before - p1.getHealth();
         int dmg2 = hp2Before - p2.getHealth();
 
-        // hit-stop 使用原始伤害（防御减免前）判断轻重击，避免防御时视觉反馈偏弱
         if (dmg1 > 0 && hitEffects != null) {
             hitEffects.onHit(p1, p2, p1.getLastRawDamageReceived());
             if (particleEffects != null) particleEffects.spawnHitSpark(p1.getX(), p1.getY() + 50);
@@ -134,16 +137,61 @@ public class GameScreen {
     }
 
     private void updateNetwork(float delta) {
-        // 网络模式：FrameSyncManager 独立线程更新 gameWorld
-        // render 线程只读 gameWorld + 更新视觉效果
-        Fighter p1 = gameWorld.getPlayer1();
-        Fighter p2 = gameWorld.getPlayer2();
+        if (gameClient == null) return;
 
-        if (hitEffects != null) hitEffects.update(delta);
-        if (particleEffects != null) particleEffects.update(delta);
-        if (motionTrailEffect != null) motionTrailEffect.sample(p1, p2, delta);
+        // 采样本地输入并发送
+        int localId = gameClient.getLocalPlayerId();
+        InputCommand cmd = inputHandler.samplePlayer1(frameNumber);
+        cmd.playerId = localId;
+        cmd.frameNumber = frameNumber;
+        gameClient.setCurrentLocalInput(cmd);
+        gameClient.sendInputToOpponent(cmd);
+        frameNumber++;
 
-        cameraController.update(p1, p2, delta);
+        // 读取游戏世界（FrameSyncManager 线程写入，此处加读锁）
+        GameWorld gw = gameClient.getGameWorldReadLocked();
+        try {
+            Fighter p1 = gw.getPlayer1();
+            Fighter p2 = gw.getPlayer2();
+            if (p1 == null || p2 == null) {
+                if (hitEffects != null) hitEffects.update(delta);
+                if (particleEffects != null) particleEffects.update(delta);
+                return;
+            }
+
+            // 初始化血量追踪
+            if (netHp1Before < 0) {
+                netHp1Before = p1.getHealth();
+                netHp2Before = p2.getHealth();
+            }
+
+            // 命中检测
+            int dmg1 = netHp1Before - p1.getHealth();
+            int dmg2 = netHp2Before - p2.getHealth();
+
+            if (dmg1 > 0 && hitEffects != null) {
+                hitEffects.onHit(p1, p2, p1.getLastRawDamageReceived());
+                if (particleEffects != null) particleEffects.spawnHitSpark(p1.getX(), p1.getY() + 50);
+                if (cameraController != null) cameraController.shake(3f + dmg1 * 0.5f, 0.15f);
+            }
+            if (dmg2 > 0 && hitEffects != null) {
+                hitEffects.onHit(p2, p1, p2.getLastRawDamageReceived());
+                if (particleEffects != null) particleEffects.spawnHitSpark(p2.getX(), p2.getY() + 50);
+                if (cameraController != null) cameraController.shake(3f + dmg2 * 0.5f, 0.15f);
+            }
+
+            netHp1Before = p1.getHealth();
+            netHp2Before = p2.getHealth();
+
+            // 更新视觉效果
+            if (hitEffects != null) hitEffects.update(delta);
+            if (particleEffects != null) particleEffects.update(delta);
+            if (motionTrailEffect != null) motionTrailEffect.sample(p1, p2, delta);
+
+            cameraController.update(p1, p2, delta);
+        } finally {
+            gameClient.releaseReadLock();
+        }
     }
 
     // === 渲染 ===
@@ -154,27 +202,41 @@ public class GameScreen {
 
         OrthographicCamera cam = cameraController.getCamera();
 
-        // 背景层
-        drawBackground(cam);
-
-        // 角色渲染（如果渲染组件已注入）
-        if (spriteRenderer != null) {
-            spriteRenderer.begin(cam);
-            spriteRenderer.drawFighter(gameWorld.getPlayer1());
-            spriteRenderer.drawFighter(gameWorld.getPlayer2());
-            spriteRenderer.end();
+        // 网络模式从 GameClient 读取 gameWorld，demo 模式用本地 gameWorld
+        GameWorld gw;
+        boolean needUnlock = false;
+        if (isNetworkMode && gameClient != null) {
+            gw = gameClient.getGameWorldReadLocked();
+            needUnlock = true;
+        } else {
+            gw = gameWorld;
         }
 
-        // 特效层
-        if (motionTrailEffect != null) motionTrailEffect.render(cam);
-        if (particleEffects != null) particleEffects.render(cam);
-        if (hitEffects != null) hitEffects.render(cam);
+        try {
+            // 背景层
+            drawBackground(cam);
 
-        // HUD
-        if (hudRenderer != null) hudRenderer.render(gameWorld, cam);
+            // 角色渲染
+            if (spriteRenderer != null && gw.getPlayer1() != null && gw.getPlayer2() != null) {
+                spriteRenderer.begin(cam);
+                spriteRenderer.drawFighter(gw.getPlayer1());
+                spriteRenderer.drawFighter(gw.getPlayer2());
+                spriteRenderer.end();
+            }
+
+            // 特效层
+            if (motionTrailEffect != null) motionTrailEffect.render(cam);
+            if (particleEffects != null) particleEffects.render(cam);
+            if (hitEffects != null) hitEffects.render(cam);
+
+            // HUD
+            if (hudRenderer != null) hudRenderer.render(gw, cam);
+        } finally {
+            if (needUnlock) {
+                gameClient.releaseReadLock();
+            }
+        }
     }
-
-    // === 清理 ===
 
     // === 背景渲染 ===
 

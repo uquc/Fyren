@@ -50,6 +50,9 @@ public class GameMain {
             case "libgdx-demo":
                 runLibgdxDemo(args);
                 break;
+            case "libgdx-client":
+                runLibgdxClient(args);
+                break;
             default:
                 System.err.println("未知模式: " + mode);
                 printUsage();
@@ -266,6 +269,70 @@ public class GameMain {
         }
     }
 
+    /** libGDX 网络客户端模式（带认证） */
+    private static void runLibgdxClient(String[] args) {
+        // 解析参数
+        String serverIp = "127.0.0.1";
+        int serverPort = 9876;
+        int playerId = 0;
+        String authHost = null;
+        int authPort = 8081;
+        String username = null;
+        String password = null;
+        FighterPreset preset = FighterPreset.TAKESHI;
+
+        for (int i = 1; i < args.length; i++) {
+            switch (args[i]) {
+                case "--server":
+                    if (++i < args.length) serverIp = args[i]; break;
+                case "--port":
+                    if (++i < args.length) serverPort = Integer.parseInt(args[i]); break;
+                case "--playerId":
+                    if (++i < args.length) playerId = Integer.parseInt(args[i]); break;
+                case "--preset":
+                    if (++i < args.length) preset = FighterPreset.valueOf(args[i].toUpperCase()); break;
+                case "--auth-server":
+                    if (++i < args.length) authHost = args[i]; break;
+                case "--auth-port":
+                    if (++i < args.length) authPort = Integer.parseInt(args[i]); break;
+                case "--username":
+                    if (++i < args.length) username = args[i]; break;
+                case "--password":
+                    if (++i < args.length) password = args[i]; break;
+            }
+        }
+
+        // 构建 FyrenLauncher 参数
+        java.util.List<String> launcherArgs = new java.util.ArrayList<>();
+        launcherArgs.add("client");
+        launcherArgs.add("--server"); launcherArgs.add(serverIp);
+        launcherArgs.add("--port"); launcherArgs.add(String.valueOf(serverPort));
+        launcherArgs.add("--preset"); launcherArgs.add(preset.name().toLowerCase());
+
+        if (playerId > 0) {
+            launcherArgs.add("--playerId"); launcherArgs.add(String.valueOf(playerId));
+        }
+        if (authHost != null) {
+            launcherArgs.add("--auth-server"); launcherArgs.add(authHost);
+            launcherArgs.add("--auth-port"); launcherArgs.add(String.valueOf(authPort));
+        }
+        if (username != null) {
+            launcherArgs.add("--username"); launcherArgs.add(username);
+        }
+        if (password != null) {
+            launcherArgs.add("--password"); launcherArgs.add(password);
+        }
+
+        System.out.println("====================================");
+        System.out.println("  Fyren libGDX 网络客户端");
+        System.out.println("  服务器: " + serverIp + ":" + serverPort);
+        System.out.println("  角色: " + preset.getDisplayName());
+        System.out.println("====================================");
+
+        com.Fyren.render.libgdx.FyrenLauncher.main(
+            launcherArgs.toArray(new String[0]));
+    }
+
     /** libGDX 本地双人演示模式 */
     private static void runLibgdxDemo(String[] args) {
         FighterPreset p1Preset = parsePresetArg(args, "--preset", FighterPreset.KAGE);
@@ -428,6 +495,8 @@ public class GameMain {
         System.out.println("  GameMain login <host> <user> <pass>      — 登录并进入匹配");
         System.out.println("  GameMain demo                            — 本地双人演示模式 (Swing)");
         System.out.println("  GameMain libgdx-demo                     — 本地双人演示模式 (libGDX)");
+        System.out.println("  GameMain libgdx-client [--server <ip>] [--playerId <id>] [--auth-server <host> --username <user> --password <pass>] [--preset kage|takeshi|gou]");
+        System.out.println("                                           — 网络对战客户端 (libGDX)");
         System.out.println();
         System.out.println("示例:");
         System.out.println("  GameMain server 9876");

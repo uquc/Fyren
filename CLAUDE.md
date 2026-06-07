@@ -151,11 +151,9 @@ FyrenLauncher (main, CLI) → FyrenGame (ApplicationListener)
 
 - No P2P yet — all input through server relay.
 - Swing render files (`SwingGameWindow`, `DemoGameWindow`, `GamePanel`, `StickFigureRenderer`, `KeyInputHandler`) are superseded by libGDX layer but retained for backward compatibility.
-- Swing Demo mode uses GamePanel with localPlayerId=1, so "YOU WIN/LOSE" overlay may be wrong for P2 perspective.
 - No sound effects loaded (AudioManager is skeleton only).
 - No background art (black background with procedural ground/grid lines).
 - `float` coordinates — fine for single-platform (Java strictfp), not cross-platform deterministic.
-- FrameSyncManager's `predictInputs()` has a bug: when local input is null, it iterates remoteInputBuffers to find missing inputs but doesn't handle the case correctly for local player.
 - GWT/WebGL target compiles but `gdx-backend-gwt` dependency not in pom.xml (separate build step needed).
 
 ## ECS Deployment (Task 11 — DONE 🎉)
@@ -193,10 +191,18 @@ FyrenLauncher (main, CLI) → FyrenGame (ApplicationListener)
 
 ```
 libGDX mode (current production):
-  Keyboard → GdxInputHandler (Gdx.input polling)
-    → InputCommand
-    → GameScreen.updateDemo() / updateNetwork()
-    → GameWorld.update() → CollisionSystem
+  Demo:
+    Keyboard → GdxInputHandler (Gdx.input polling)
+      → InputCommand
+      → GameScreen.updateDemo()
+      → GameWorld.update() → CollisionSystem
+
+  Network (new — FrameSyncManager integrated):
+    Keyboard → GdxInputHandler → InputCommand
+      → GameScreen.updateNetwork() → GameClient.setCurrentLocalInput() + sendInputToOpponent()
+    FrameSyncManager.gameLoop (independent thread) → GameWorld.update() → CollisionSystem
+    libGDX render thread → GameScreen.render() → reads GameWorld via GameClient.getGameWorldReadLocked()
+
   GameScreen.render()
     → SpriteRenderer (procedural textures + SpriteBatch)
     → HitEffects / ParticleEffects / MotionTrailEffect
@@ -216,35 +222,20 @@ Swing mode (legacy, retained):
 
 ## Current Session (2026-06-07)
 
-**本次完成:** 用户登录模块 — JWT双Token认证 (jjwt 0.12.5)、Redis集成 (Jedis 5.1.2)、Docker容器化 (docker-compose: Redis 7 + Fyren)。
+**本次完成:** libGDX 网络模式集成 FrameSyncManager + FrameSyncManager Bug 修复。
 
-**Phases completed:** Tasks 1-12 + Tasks 13a-13j — ALL DONE ✅
+### 变更摘要
+1. **FrameSyncManager Bug 修复** — `predictInputs()` 现在也处理本地玩家输入缺失的情况（回滚重放时），新增 `copyInput()` 辅助方法
+2. **GameScreen 网络模式** — `updateNetwork()` 采样 P1 输入 → GameClient → FrameSyncManager，通过 `getGameWorldReadLocked()` 线程安全读取 gameWorld，`render()` 同样加读锁
+3. **FyrenGame** — `createNetworkClient(GameClient)` 接受已匹配的 GameClient，`create()` 中调用 `gameClient.startGame()`
+4. **FyrenLauncher** — client 模式：解析 --server/--port/--playerId/--preset + 认证参数，连接→匹配→传入 FyrenGame；使用 CountDownLatch 等待匹配结果（60s 超时）
+5. **GameMain** — 新增 `libgdx-client` 模式，委托给 FyrenLauncher
 
-Last commit: `011693c feat: ECS deployment — daemon mode, match result reporting, portfolio site`
-**Uncommitted changes:** ~55 files (libGDX render layer, auth/ JWT, redis/, docker/, pom.xml, GameServer.java, GameMain.java, GameClient.java, HttpStatusServer.java, network/match files, web/index.html, deploy-ecs.ps1)
-
-### Task Status
-
-| # | Task | Status |
-|---|------|--------|
-| 1-12 | 渲染层+战斗系统+ECS部署 (见历史) | ✅ all done |
-| 13a | pom.xml 加依赖 (jjwt, jedis, jbcrypt) | ✅ done |
-| 13b | auth/model/ 4个DTO | ✅ done |
-| 13c | RedisService (Jedis + 内存降级) | ✅ done |
-| 13d | JwtTokenProvider (HMAC-SHA256) | ✅ done |
-| 13e | AuthService (注册/登录/刷新/登出) | ✅ done |
-| 13f | AuthHttpServer (端口8081) | ✅ done |
-| 13g | GameServer 集成 + HttpStatusServer 扩展 (/leaderboard) | ✅ done |
-| 13h | GameClient 登录注册方法 + GameMain CLI | ✅ done |
-| 13i | Dockerfile + docker-compose.yml | ✅ done |
-| 13j | mvn compile + test 验证 | ✅ done |
-
-### Plan file
-`.claude/plans/sprightly-chasing-wreath.md`
+Last commit: `0b563b3 feat: JWT双Token认证 + Redis集成 + Docker容器化`
+**本次变更:** 5 files — FrameSyncManager, GameScreen, FyrenGame, FyrenLauncher, GameMain
 
 ### Next session
-- 提交所有未提交变更
+- 提交本次变更
 - ECS 部署更新版 JAR + Redis + Auth API
-- P2 输入映射 Bug
-- libGDX 网络模式集成 FrameSyncManager
 - GWT/WebGL 浏览器版构建管线
+- 端到端网络对战测试

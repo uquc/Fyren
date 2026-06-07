@@ -153,17 +153,30 @@ public class FrameSyncManager {
             if (!seenPlayers.contains(remotePlayerId)) {
                 InputCommand predicted = lastKnownInputs.get(remotePlayerId);
                 if (predicted != null) {
-                    InputCommand copy = new InputCommand(frameNumber, remotePlayerId);
-                    copy.up = predicted.up; copy.down = predicted.down;
-                    copy.left = predicted.left; copy.right = predicted.right;
-                    copy.punch = predicted.punch; copy.kick = predicted.kick;
-                    copy.special = predicted.special;
-                    result.add(copy);
+                    result.add(copyInput(predicted, frameNumber, remotePlayerId));
                 }
             }
         }
 
+        // 预测缺失的本地输入（回滚重放时本地输入缓冲区可能还未到达该帧）
+        if (!seenPlayers.contains(localPlayerId)) {
+            InputCommand predicted = lastKnownInputs.get(localPlayerId);
+            if (predicted != null) {
+                result.add(copyInput(predicted, frameNumber, localPlayerId));
+            }
+        }
+
         return result;
+    }
+
+    /** 复制输入指令（保留方向/动作，更新帧号和玩家ID） */
+    private InputCommand copyInput(InputCommand src, int frameNumber, int playerId) {
+        InputCommand copy = new InputCommand(frameNumber, playerId);
+        copy.up = src.up; copy.down = src.down;
+        copy.left = src.left; copy.right = src.right;
+        copy.punch = src.punch; copy.kick = src.kick;
+        copy.special = src.special;
+        return copy;
     }
 
     /**
