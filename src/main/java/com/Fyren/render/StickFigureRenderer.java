@@ -14,6 +14,12 @@ import java.awt.geom.Line2D;
 public class StickFigureRenderer {
 
     private static final float HEAD_RADIUS = 10f;
+
+    /** Convert packed RGBA int (0xAARRGGBB) to java.awt.Color */
+    public static Color toColor(int packed) {
+        return new Color((packed >> 16) & 0xFF, (packed >> 8) & 0xFF, packed & 0xFF,
+                         (packed >> 24) & 0xFF);
+    }
     private static final float BODY_LENGTH = 30f;
     private static final float LIMB_LENGTH = 20f;
 
@@ -30,7 +36,7 @@ public class StickFigureRenderer {
         boolean facingRight = fighter.isFacingRight();
 
         g2d.setStroke(new BasicStroke(preset.getLineWidth(), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        g2d.setColor(preset.getLineColor());
+        g2d.setColor(toColor(preset.getLineColor()));
 
         // 僵直红色闪烁
         if (stance == FighterStance.HURT && (System.currentTimeMillis() / 100) % 2 == 0) {
@@ -75,14 +81,15 @@ public class StickFigureRenderer {
                 float spX = shoulderX + dir * 30f;
                 g2d.draw(new Line2D.Float(shoulderX, shoulderY - 3f, spX, shoulderY - 8f));
                 g2d.draw(new Line2D.Float(shoulderX, shoulderY + 3f, spX, shoulderY + 8f));
-                Color glow = new Color(preset.getLineColor().getRed(),
-                        preset.getLineColor().getGreen(),
-                        preset.getLineColor().getBlue(), 100);
+                Color lineColor = toColor(preset.getLineColor());
+                Color glow = new Color(lineColor.getRed(),
+                        lineColor.getGreen(),
+                        lineColor.getBlue(), 100);
                 g2d.setColor(glow);
                 g2d.setStroke(new BasicStroke(preset.getLineWidth() + 2f));
                 g2d.drawOval((int)(x - 30), (int)(shoulderY - 25), 60, 50);
                 g2d.setStroke(new BasicStroke(preset.getLineWidth(), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                g2d.setColor(preset.getLineColor());
+                g2d.setColor(lineColor);
                 break;
             case BLOCK:
                 g2d.draw(new Line2D.Float(shoulderX, shoulderY, shoulderX - dir * 10f, shoulderY + LIMB_LENGTH * 0.6f));

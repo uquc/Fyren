@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE module PUBLIC "-//Google Inc.//DTD Google Web Toolkit 2.8.2//EN"
+  "http://gwtproject.org/doctype/2.8.2/gwt-module.dtd">
+<module rename-to="fyren">
+    <inherits name="com.badlogic.gdx.backends.gdx_backends_gwt"/>
+
+    <!-- libGDX asset preloader 配置（无外部资源，空目录占位） -->
+    <set-configuration-property name="gdx.assetpath" value="gwt-assets/"/>
+
+    <!-- libGDX 渲染层（不含 FyrenGame.java / GameScreen.java — 引用 GameClient） -->
+    <source path="render/libgdx">
+        <include name="GdxInputHandler.java"/>
+        <include name="CameraController.java"/>
+        <include name="SpriteRenderer.java"/>
+        <include name="HudRenderer.java"/>
+        <include name="HitEffects.java"/>
+        <include name="ParticleEffects.java"/>
+        <include name="MotionTrailEffect.java"/>
+    </source>
+
+    <!-- GWT Launcher (entry-point) -->
+    <source path="render/libgdx/gwt">
+        <include name="*.java"/>
+    </source>
+
+    <!-- 游戏逻辑（确定性核心） -->
+    <source path="game">
+        <include name="*.java"/>
+    </source>
+
+    <!-- 输入/同步数据结构（不含 FrameSyncManager/GameClient 网络层） -->
+    <source path="sync">
+        <include name="InputCommand.java"/>
+        <include name="InputBuffer.java"/>
+    </source>
+
+    <!-- WebGL Demo 为本地双人对战模式，不依赖网络 -->
+    <entry-point class="com.Fyren.render.libgdx.gwt.FyrenGwtLauncher"/>
+</module>

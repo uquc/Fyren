@@ -1,6 +1,6 @@
 package com.Fyren.game;
 
-import java.awt.Rectangle;
+// Uses com.Fyren.game.Rect (GWT-compatible, same package)
 
 /**
  * 碰撞系统 — 基于帧数据的判定框碰撞检测。
@@ -14,10 +14,10 @@ import java.awt.Rectangle;
 public class CollisionSystem {
 
     public void checkCollisions(Fighter p1, Fighter p2) {
-        Rectangle a1 = p1.getAttackBox();
-        Rectangle h2 = p2.getHitbox();
-        Rectangle a2 = p2.getAttackBox();
-        Rectangle h1 = p1.getHitbox();
+        Rect a1 = p1.getAttackBox();
+        Rect h2 = p2.getHitbox();
+        Rect a2 = p2.getAttackBox();
+        Rect h1 = p1.getHitbox();
 
         boolean p1Attacking = p1.isAttacking() && a1.width > 0 && a1.height > 0;
         boolean p2Attacking = p2.isAttacking() && a2.width > 0 && a2.height > 0;
@@ -111,8 +111,8 @@ public class CollisionSystem {
     }
 
     private void resolveOverlap(Fighter p1, Fighter p2) {
-        Rectangle h1 = p1.getHitbox();
-        Rectangle h2 = p2.getHitbox();
+        Rect h1 = p1.getHitbox();
+        Rect h2 = p2.getHitbox();
         if (!h1.intersects(h2)) return;
 
         int overlap = (int) (Math.min(h1.getMaxX(), h2.getMaxX())

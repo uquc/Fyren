@@ -376,15 +376,15 @@ public class Fighter {
 
     // ========== 判定框 ==========
 
-    public java.awt.Rectangle getHitbox() {
+    public Rect getHitbox() {
         int w = preset.getHitboxWidth();
         int h = preset.getHitboxHeight();
-        return new java.awt.Rectangle((int) x - w / 2, (int) GROUND_Y - h, w, h);
+        return new Rect((int) x - w / 2, (int) GROUND_Y - h, w, h);
     }
 
-    public java.awt.Rectangle getAttackBox() {
+    public Rect getAttackBox() {
         if (actionState != ActionState.ACTIVE) {
-            return new java.awt.Rectangle(0, 0, 0, 0);
+            return new Rect(0, 0, 0, 0);
         }
 
         int facingSign = facingRight ? 1 : -1;
@@ -426,7 +426,7 @@ public class Fighter {
         }
 
         if (!facingRight && actionType != ActionType.SPECIAL) boxX -= boxW;
-        return new java.awt.Rectangle(boxX, (int) GROUND_Y - boxH, boxW, boxH);
+        return new Rect(boxX, (int) GROUND_Y - boxH, boxW, boxH);
     }
 
     // ========== 姿态 ==========

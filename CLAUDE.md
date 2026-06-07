@@ -37,6 +37,10 @@ java -cp target/Fyren-1.0-SNAPSHOT.jar com.Fyren.GameMain login localhost <user>
 # Docker
 cd docker && docker compose up -d
 
+# GWT/WebGL compile (first time: download sources)
+mvn dependency:sources -DincludeArtifactIds=gdx-backend-gwt,gdx -q
+mvn compile -q && ./gwt-compile.bat   # output: target/gwt-out/
+
 # jpackage EXE
 mvn package -q
 jpackage --input target --name Fyren --main-jar Fyren-1.0-SNAPSHOT.jar --main-class com.Fyren.render.libgdx.FyrenLauncher --type exe --win-console --java-options "-XstartOnFirstThread"
@@ -154,7 +158,7 @@ FyrenLauncher (main, CLI) → FyrenGame (ApplicationListener)
 - No sound effects loaded (AudioManager is skeleton only).
 - No background art (black background with procedural ground/grid lines).
 - `float` coordinates — fine for single-platform (Java strictfp), not cross-platform deterministic.
-- GWT/WebGL target compiles but `gdx-backend-gwt` dependency not in pom.xml (separate build step needed).
+- GWT/WebGL target compiles to JS (5 permutations, ~6.8MB each), served via `target/gwt-out/index.html`. Requires manual `mvn dependency:sources` for gdx/gdx-backend-gwt before first build.
 
 ## ECS Deployment (Task 11 — DONE 🎉)
 
@@ -215,6 +219,11 @@ Network mode (planned — FrameSyncManager integration pending):
   FrameSyncManager.gameLoop → GameWorld.update() → CollisionSystem
   libGDX render thread → GameScreen.render()
 
+WebGL (GWT compiled JS):
+  Keyboard → GdxInputHandler (Gdx.input polling) → InputCommand
+    → FyrenGwtLauncher (inline game loop) → GameWorld.update() → CollisionSystem
+    → SpriteRenderer / HitEffects / ParticleEffects / MotionTrailEffect / HudRenderer
+
 Swing mode (legacy, retained):
   Keyboard → KeyInputHandler → InputCommand
   Swing Timer → GamePanel.repaint() → StickFigureRenderer
@@ -222,20 +231,45 @@ Swing mode (legacy, retained):
 
 ## Current Session (2026-06-07)
 
-**本次完成:** libGDX 网络模式集成 FrameSyncManager + FrameSyncManager Bug 修复。
+**本次完成:** GWT/WebGL 编译管线 + 游戏核心 GWT 兼容化 + ECS 部署包准备。
 
-### 变更摘要
-1. **FrameSyncManager Bug 修复** — `predictInputs()` 现在也处理本地玩家输入缺失的情况（回滚重放时），新增 `copyInput()` 辅助方法
-2. **GameScreen 网络模式** — `updateNetwork()` 采样 P1 输入 → GameClient → FrameSyncManager，通过 `getGameWorldReadLocked()` 线程安全读取 gameWorld，`render()` 同样加读锁
-3. **FyrenGame** — `createNetworkClient(GameClient)` 接受已匹配的 GameClient，`create()` 中调用 `gameClient.startGame()`
-4. **FyrenLauncher** — client 模式：解析 --server/--port/--playerId/--preset + 认证参数，连接→匹配→传入 FyrenGame；使用 CountDownLatch 等待匹配结果（60s 超时）
-5. **GameMain** — 新增 `libgdx-client` 模式，委托给 FyrenLauncher
+### 变更摘要 (Phase 1: libGDX 网络集成)
+1. **FrameSyncManager Bug 修复** — `predictInputs()` 处理本地玩家输入缺失，新增 `copyInput()`
+2. **GameScreen 网络模式** — `updateNetwork()` → GameClient → FrameSyncManager，ReadWriteLock 线程安全
+3. **FyrenGame/FyrenLauncher/GameMain** — 网络客户端模式集成
+
+### 变更摘要 (Phase 2: GWT/WebGL 编译管线 ✅)
+1. **GWT 编译成功** → 输出 `target/gwt-out/fyren/*.js` (5 排列 ~6.8MB each)
+2. **FyrenGwt.gwt.xml** — 模块文件移到 `com.Fyren/` 级别，canonical source paths
+3. **FyrenGwtLauncher** — 自包含 WebGL Demo（不依赖 FyrenGame/GameScreen/GameClient）
+4. **GWT 兼容化改造:**
+   - 创建 `com.Fyren.game.Rect` — 替代 `java.awt.Rectangle`
+   - `FighterPreset.lineColor` — `java.awt.Color` → `int` (packed RGBA)
+   - `Fighter.java` — `getHitbox()/getAttackBox()` 返回 `Rect` 而非 `Rectangle`
+   - `CollisionSystem.java` — 使用 `Rect` 替代 `Rectangle`
+   - `HudRenderer.java` — `String.format()` → 手动 `pad2()` (GWT 不支持)
+   - `StickFigureRenderer.java` — 添加 `toColor(int)` 转换方法
+   - `GamePanel.java` — Rect → java.awt.Rectangle 适配
+5. **Chrome.gwt.xml 占位** — 创建于 `src/main/java/com/badlogic/gdx/backends/gwt/theme/chrome/`（后删除，因 gdx-backend-gwt-sources.jar 已下载）
+6. **gwt-compile.bat/sh** — 完整 classpath（gwt-dev + transitive deps: asm, colt, gson, tapestry, ant, jsr305, validation）
+7. **CLI 命令:**
+   ```bash
+   mvn compile -q
+   mvn dependency:sources -DincludeArtifactIds=gdx-backend-gwt,gdx  # 首次
+   ./gwt-compile.sh   # or gwt-compile.bat
+   ```
+8. **GWT classpath 依赖链:** gwt-dev, gwt-user, gdx + sources, gdx-backend-gwt + sources, jsinterop-annotations + sources, validation-api + sources, ant + launcher, colt, asm + util + commons, gson, jsr305, tapestry
+
+### ECS 部署状态
+- `target/deploy.zip` (57MB, jre-minimal + fat JAR) ✅
+- `deploy-ecs.ps1` ✅  
 
 Last commit: `0b563b3 feat: JWT双Token认证 + Redis集成 + Docker容器化`
-**本次变更:** 5 files — FrameSyncManager, GameScreen, FyrenGame, FyrenLauncher, GameMain
+**本次变更:** ~20 files — game core GWT compat, GWT module/launcher/scripts, render adapters, CLAUDE.md
 
 ### Next session
-- 提交本次变更
-- ECS 部署更新版 JAR + Redis + Auth API
+- 推送本次变更 (git commit + push)
+- ECS 部署 deploy.zip (RDP 手动传输)
+- 端到端网络对战测试
 - GWT/WebGL 浏览器版构建管线
 - 端到端网络对战测试

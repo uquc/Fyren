@@ -55,9 +55,11 @@ public class HudRenderer {
         drawHealthBar(40, viewH - 60, p1, displayHp1);
         drawHealthBar(viewW - 40 - HEALTH_BAR_W, viewH - 60, p2, displayHp2);
 
-        // 计时器
+        // 计时器（手动格式化，GWT 不支持 String.format）
         int timeLeft = Math.max(0, world.getTimerFrames() / 60);
-        String timeStr = String.format("%02d:%02d", timeLeft / 60, timeLeft % 60);
+        int minutes = timeLeft / 60;
+        int seconds = timeLeft % 60;
+        String timeStr = pad2(minutes) + ":" + pad2(seconds);
         drawCenteredText(timeStr, viewW / 2f, viewH - 30, 1.2f);
 
         // 特殊技指示灯
@@ -164,5 +166,10 @@ public class HudRenderer {
         font.dispose();
         shapes.dispose();
         batch.dispose();
+    }
+
+    /** GWT-compatible zero-padding helper (GWT 不支持 String.format) */
+    private static String pad2(int n) {
+        return n < 10 ? "0" + n : String.valueOf(n);
     }
 }

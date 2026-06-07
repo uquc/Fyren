@@ -63,14 +63,16 @@ public class GamePanel extends JPanel {
 
         // 攻击框调试可视化（屏幕坐标直接基于 Fighter 的世界偏移映射）
         if (p1.isAttacking()) {
-            Rectangle ab = p1.getAttackBox();
+            com.Fyren.game.Rect fab = p1.getAttackBox();
+            Rectangle ab = new Rectangle(fab.x, fab.y, fab.width, fab.height);
             if (ab.width > 0) {
                 float abScreenX = p1ScreenX + (p1.isFacingRight() ? p1.getPreset().getHitboxWidth() / 2f : -p1.getPreset().getHitboxWidth() / 2f - ab.width);
                 StickFigureRenderer.drawAttackBox(g2d, new Rectangle((int)abScreenX, GROUND_Y - ab.height, ab.width, ab.height));
             }
         }
         if (p2.isAttacking()) {
-            Rectangle ab = p2.getAttackBox();
+            com.Fyren.game.Rect fab = p2.getAttackBox();
+            Rectangle ab = new Rectangle(fab.x, fab.y, fab.width, fab.height);
             if (ab.width > 0) {
                 float abScreenX = p2ScreenX + (p2.isFacingRight() ? p2.getPreset().getHitboxWidth() / 2f : -p2.getPreset().getHitboxWidth() / 2f - ab.width);
                 StickFigureRenderer.drawAttackBox(g2d, new Rectangle((int)abScreenX, GROUND_Y - ab.height, ab.width, ab.height));
@@ -80,10 +82,10 @@ public class GamePanel extends JPanel {
         // 血量条
         StickFigureRenderer.drawHealthBar(g2d, 20, HEALTH_BAR_Y,
                 HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT,
-                p1.getHealth(), p1.getMaxHealth(), p1.getPreset().getLineColor(), true);
+                p1.getHealth(), p1.getMaxHealth(), StickFigureRenderer.toColor(p1.getPreset().getLineColor()), true);
         StickFigureRenderer.drawHealthBar(g2d, PANEL_WIDTH - 20 - HEALTH_BAR_WIDTH, HEALTH_BAR_Y,
                 HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT,
-                p2.getHealth(), p2.getMaxHealth(), p2.getPreset().getLineColor(), false);
+                p2.getHealth(), p2.getMaxHealth(), StickFigureRenderer.toColor(p2.getPreset().getLineColor()), false);
 
         // 角色名
         g2d.setFont(new Font("SansSerif", Font.BOLD, 14));

@@ -42,6 +42,14 @@
             <version>1.12.1</version>
         </dependency>
 
+        <!-- libGDX GWT/WebGL 后端（编译时需要，GWT 编译器单独处理） -->
+        <dependency>
+            <groupId>com.badlogicgames.gdx</groupId>
+            <artifactId>gdx-backend-gwt</artifactId>
+            <version>1.12.1</version>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- libGDX 桌面平台 natives -->
         <dependency>
             <groupId>com.badlogicgames.gdx</groupId>
@@ -92,8 +100,6 @@
                 <version>3.13.0</version>
                 <configuration>
                     <excludes>
-                        <!-- GWT files need gdx-backend-gwt on classpath (separate build step) -->
-                        <exclude>**/libgdx/gwt/**</exclude>
                     </excludes>
                 </configuration>
             </plugin>
