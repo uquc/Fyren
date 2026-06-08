@@ -171,7 +171,7 @@ FyrenLauncher (main, CLI) → FyrenGame (ApplicationListener)
 **Security Group** (`sg-bp10gn3btvuod4p9coge`):
 - TCP 80 (HTTP — portfolio website)
 - TCP 8080 (HTTP status API)
-- TCP 8081 (Auth API)
+- TCP 8081 (Auth API) — ⚠️ 需手动添加，不在默认规则中
 - UDP 9876 (game server)
 - TCP 22 (SSH)
 - ALL ICMP
@@ -229,7 +229,28 @@ Swing mode (legacy, retained):
   Swing Timer → GamePanel.repaint() → StickFigureRenderer
 ```
 
-## Current Session (2026-06-07)
+## Current Session (2026-06-08)
+
+**本次完成:** ECS 部署 + 安全组修复 + Auth API 外部可访问 + deploy-ecs.ps1 修复。
+
+### 变更摘要
+1. **ECS 部署成功** — 游戏服务器 + Auth API 在 115.29.230.57 运行
+2. **安全组修复** — 添加 TCP 8081 入方向规则（之前缺失）
+3. **deploy-ecs.ps1 修复** — `java -version` stderr 不中断脚本；不再使用 `$ErrorActionPreference = "Stop"`
+4. **deploy.zip 修复** — 包含 `jre-minimal/` 目录前缀和 `conf/` 目录
+5. **git push** — github + gitee（需 VPN 代理 127.0.0.1:7892）
+
+### 已验证
+- ECS 游戏服务器 UDP 9876 ✅
+- HTTP 状态 API 8080 ✅
+- Auth API 8081 ✅ (register/login)
+- 外部客户端连接/匹配 ✅
+
+### 待办
+- GWT/WebGL 浏览器版验证
+- 端到端双人对战测试（需两个客户端，手动操作）
+
+## Historical Session (2026-06-07)
 
 **本次完成:** GWT/WebGL 编译管线 + 游戏核心 GWT 兼容化 + ECS 部署包准备。
 
@@ -264,11 +285,4 @@ Swing mode (legacy, retained):
 - `target/deploy.zip` (57MB, jre-minimal + fat JAR) ✅
 - `deploy-ecs.ps1` ✅  
 
-Last commit: `902038e feat: GWT/WebGL build pipeline + game core GWT compat + ECS deploy update`
-
-### Next session
-- 推送本次变更 (git commit + push)
-- ECS 部署 deploy.zip (RDP 手动传输)
-- 端到端网络对战测试
-- GWT/WebGL 浏览器版构建管线
-- 端到端网络对战测试
+Last commit: `4f69895 fix: deploy-ecs.ps1 handle java -version stderr in verification step`
