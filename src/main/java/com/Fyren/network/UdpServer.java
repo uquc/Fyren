@@ -113,9 +113,10 @@ public class UdpServer {
                 }
 
             } catch (SocketTimeoutException e) {
-                // 正常超时
-            } catch (IOException e) {
-                if (running && onError != null) onError.accept(e);
+                // 正常超时，继续
+            } catch (Exception e) {
+                System.err.println("[UdpServer] 接收循环异常: " + e.getMessage());
+                e.printStackTrace();
             }
         }
     }

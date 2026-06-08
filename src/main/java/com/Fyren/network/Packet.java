@@ -44,6 +44,7 @@ public abstract class Packet {
         int typeCode = buf.getInt();
         int seq = buf.getInt();
         Type type = Type.fromCode(typeCode);
+        if (type == null) return null;
 
         switch (type) {
             case INPUT: return InputPacket.fromBuffer(buf, seq);
