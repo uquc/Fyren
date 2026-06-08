@@ -231,24 +231,39 @@ Swing mode (legacy, retained):
 
 ## Current Session (2026-06-08)
 
-**本次完成:** ECS 部署 + 安全组修复 + Auth API 外部可访问 + deploy-ecs.ps1 修复。
+**本次完成:** ECS 部署 + 安全组修复 + Auth API 外部可访问 + 关键 Bug 修复（UDP 接收线程崩溃）。
 
 ### 变更摘要
-1. **ECS 部署成功** — 游戏服务器 + Auth API 在 115.29.230.57 运行
-2. **安全组修复** — 添加 TCP 8081 入方向规则（之前缺失）
-3. **deploy-ecs.ps1 修复** — `java -version` stderr 不中断脚本；不再使用 `$ErrorActionPreference = "Stop"`
-4. **deploy.zip 修复** — 包含 `jre-minimal/` 目录前缀和 `conf/` 目录
-5. **git push** — github + gitee（需 VPN 代理 127.0.0.1:7892）
+1. **ECS 部署** — 游戏服务器 + Auth API 在 `115.29.230.57` 运行
+2. **安全组修复** — 添加 TCP 8081 入方向规则（之前缺失，CLAUDE.md 记错了）
+3. **deploy-ecs.ps1 修复** — `java -version` stderr 不中断脚本
+4. **deploy.zip 修复** — 包含 `jre-minimal/` 前缀 + `conf/` 目录（之前 zip 丢了 conf，导致 JRE 无法启动）
+5. **🔴 关键 Bug 修复 (`ae70368`)：**
+   - `Packet.deserialize()` — `type` 为 null 时 `switch(null)` 抛 NPE，**静默杀死整个 UDP 接收线程**
+   - `UdpServer.receiveLoop()` — 只 catch `IOException`，其他异常让线程直接死亡
+   - 修复：null check + `catch (Exception)` 兜底
+6. **ECS 服务验证：** HTTP 8080 ✅ | Auth API 8081 ✅ | UDP 9876 ✅
 
-### 已验证
-- ECS 游戏服务器 UDP 9876 ✅
-- HTTP 状态 API 8080 ✅
-- Auth API 8081 ✅ (register/login)
-- 外部客户端连接/匹配 ✅
+### 已完成
+- [x] ECS 服务器部署并运行
+- [x] 安全组 TCP 8081 添加（阿里云控制台操作）
+- [x] Auth API 外部可访问（register/login 成功）
+- [x] NPE/UDP 接收线程崩溃 Bug 修复并推送
+- [x] 修复后 JAR 已上传 ECS 并重启
 
-### 待办
-- GWT/WebGL 浏览器版验证
-- 端到端双人对战测试（需两个客户端，手动操作）
+### 未完成
+- [ ] **端到端双人对战测试** — 需启动两个客户端验证匹配→帧同步→碰撞→结果上报全链路
+  - 前置条件已满足：ECS 服务器运行中、Auth 可用、Bug 已修复
+  - 使用 `dual-client-test.bat` 启动两个客户端
+- [ ] **GWT/WebGL 浏览器版验证** — 编译产物在 `target/gwt-out/`，需 HTTP 服务器托管后浏览器实测
+- [ ] **onlinePlayers 计数 Bug** — `HttpStatusServer.onlinePlayers` 只在启动时设置一次，从未更新
+
+### 下次会话
+1. 端到端双人对战测试（开发者 Claude + 测试员 Claude 协作）
+2. 测试员 Claude 编写端到端测试用例
+3. GWT/WebGL 浏览器版验证
+4. onlinePlayers 实时更新修复
+5. Redis 部署到 ECS（当前降级为内存模式）
 
 ## Historical Session (2026-06-07)
 
@@ -285,4 +300,4 @@ Swing mode (legacy, retained):
 - `target/deploy.zip` (57MB, jre-minimal + fat JAR) ✅
 - `deploy-ecs.ps1` ✅  
 
-Last commit: `4f69895 fix: deploy-ecs.ps1 handle java -version stderr in verification step`
+Last commit: `ae70368 fix: NPE in Packet.deserialize crashes UDP receive thread + add catch-all exception handler`
