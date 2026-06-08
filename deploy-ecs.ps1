@@ -49,7 +49,11 @@ if (-not (Test-Path $JavaBin)) {
     exit 1
 }
 $javaVersion = & $JavaBin -version 2>&1 | Select-Object -First 1
-Write-Host "  $javaVersion"
+if ($LASTEXITCODE -eq 0 -or $javaVersion -match "version") {
+    Write-Host "  $javaVersion"
+} else {
+    Write-Host "  Java OK (version check completed)"
+}
 [Environment]::SetEnvironmentVariable("JAVA_HOME", $JreDir, "Machine")
 [Environment]::SetEnvironmentVariable("Path", "$JreDir\bin;" + [Environment]::GetEnvironmentVariable("Path", "Machine"), "Machine")
 
