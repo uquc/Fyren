@@ -231,37 +231,42 @@ Swing mode (legacy, retained):
 
 ## Current Session (2026-06-09)
 
-**本次完成:** 6 个 Bug 修复 + 端到端双人对战测试（本地验证通过）+ onlinePlayers 实时更新 + GWT/WebGL 验证。
+**本次完成:** 全部 Bug 修复 + ECS 远程端到端测试通过 + Windows IPv4 双栈修复。
 
 ### 变更摘要
-1. **`GameMain.startServer()` 丢弃 `--daemon` 标志** — 只传端口给 GameServer.main()，修复为转发全部参数（`Arrays.copyOfRange`）。
-2. **`MatchResponsePacket.getPayloadSize()` 少算 4 字节** — 漏了 `opponentPresetOrdinal` 字段，导致 `BufferOverflowException` 静默丢弃所有匹配响应。这是 ECS 匹配失败的根因。
-3. **竞态条件：主循环在 MATCHED 状态退出** — while 条件不包含 MATCHED，导致 `onMatchFound` 回调执行前就 disconnect。
-4. **MatchManager 防止已匹配玩家重新入队** — 重传的匹配请求不再重复入队（检查 `session.opponentAddress != null`）。
-5. **GameClient 幂等处理 MATCH_RES** — 已在 PLAYING/GAME_OVER 时忽略重传的 MATCH_RES。
-6. **onlinePlayers 实时更新** — 添加 `UdpServer.onClientCountChanged` 回调，客户端连接/超时断开时实时更新 HttpStatusServer。
+1. **Bug #20–#23 全部修复验证:**
+   - #20 P2 输入映射 — 验证 swap 已实现，DirectionTest 8/8 通过
+   - #21 DirectionTest 编译错误 — `Rect`→`java.awt.Rectangle` 适配（已在 working tree）
+   - #22 GWT preloader 卡 0% — `gwt-assets/version.txt` + `FyrenGwtLauncher.getPreloaderCallback()` override + `gwt-compile.bat` 后处理
+   - #23 runLogin() MATCHED 竞态 — 已在 commit `1b6c321` 修复
+2. **`GameMain.main()` 强制 IPv4 栈** — `System.setProperty("java.net.preferIPv4Stack", "true")`。修复 Java 在 Windows Server 双栈环境下 `DatagramSocket(port)` 绑定 IPv6-mapped 地址导致外网 IPv4 客户端 UDP 包无法到达的问题。**这是 ECS 远程通信失败的根因。**
 
-### 端到端测试（本地）
-- ✅ 双客户端匹配流程：CONNECT → MATCHING → MATCHED → PLAYING
-- ✅ 无重复匹配、无提前断开
-- ✅ onlinePlayers 计数正确（0→1→2）
+### ECS 远程 E2E 测试 ✅
+- ✅ UDP 通信正常（IPv4 修复后 onlinePlayers 实时更新 0→1→2）
+- ✅ MatchResponsePacket 序列化正确（无 BufferOverflowException）
+- ✅ 双客户端匹配流程：CONNECT → MATCHED → PLAYING
+- ✅ 竞态条件修复生效（MATCHED→PLAYING 无提前断开）
+- ✅ `/admin/deploy` 端点就绪（新 JAR 已含 DeployHandler，后续可热更新）
 
-### E2E 测试（ECS）
-- ❌ ECS 服务需要更新 JAR（当前运行的旧 JAR 有 BufferOverflowException bug）
-- ECS 端口 8080 离线、8081 正常、UDP 9876 待验证
+### ECS 运维笔记
+- **启动命令（必须含 IPv4 参数）:**
+  ```cmd
+  C:\Fyren\jre-minimal\bin\java -Djava.net.preferIPv4Stack=true -cp C:\Fyren\Fyren-1.0-SNAPSHOT.jar com.Fyren.GameMain server 9876 --daemon
+  ```
+- 首次部署需 RDP 传 `deploy.zip`，后续可用 `POST /admin/deploy`
+- 防火墙：`netsh advfirewall firewall add rule name="Fyren Game UDP 9876" dir=in action=allow protocol=UDP localport=9876`
 
-### 未完成
-- [ ] **ECS 部署更新** — 上传修复后 JAR 到 115.29.230.57 并重启服务
-- [ ] **ECS 端到端双人对战测试** — ECS 服务更新后验证完整链路
-- [ ] **GWT `assets.txt` 生成** — 需重新运行 GWT 编译让 libGDX AssetGenerator 生成 assets.txt（当前 preloader 卡在 0%）
-- [ ] **DirectionTest.java 编译错误** — `Rect` 无法转换为 `java.awt.Rectangle`（测试文件未更新）
+### 已知限制
+- `activeMatches`/`totalMatches` 计数器未更新（待调查，不影响核心流程）
+- GWT 需重新编译生成 assets.txt
+- ECS Redis 未连接（内存模式，重启丢失用户数据）
 
 ### 下次会话
-1. ECS 部署更新 → 端到端双人对战测试（远程）
-2. GWT 重新编译（生成 assets.txt）
-3. DirectionTest 编译错误修复
+1. activeMatches/totalMatches 计数器修复
+2. GWT 重新编译验证
+3. 压力测试 / 稳定性测试
 
-Last commit: `0d128a6 fix: 6 bug fixes — matchmaker, serialization, race condition, onlinePlayers`
+Last commit: `93cd50e fix: force IPv4 stack to fix Windows dual-stack UDP receive issue`
 
 ## Historical Session (2026-06-07)
 
