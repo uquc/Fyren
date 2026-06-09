@@ -472,6 +472,7 @@ public class GameMain {
             client.requestMatch();
 
             while (client.getState() == GameClient.ClientState.MATCHING ||
+                   client.getState() == GameClient.ClientState.MATCHED ||
                    client.getState() == GameClient.ClientState.PLAYING) {
                 try { Thread.sleep(100); } catch (InterruptedException e) { break; }
             }

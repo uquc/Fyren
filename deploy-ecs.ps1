@@ -87,7 +87,7 @@ $now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 "=== Server started at $now ===" | Out-File $logFile -Encoding utf8
 
 Start-Process -WindowStyle Hidden -FilePath $JavaBin `
-    -ArgumentList "-jar", $JarPath, "9876", "--daemon" `
+    -ArgumentList "-cp", $JarPath, "com.Fyren.GameMain", "server", "9876", "--daemon" `
     -RedirectStandardOutput $logFile -RedirectStandardError "$DeployDir\server-error.log"
 
 Start-Sleep -Seconds 3

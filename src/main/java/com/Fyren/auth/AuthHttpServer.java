@@ -46,6 +46,7 @@ public class AuthHttpServer {
         server.createContext("/auth/refresh", new RefreshHandler());
         server.createContext("/auth/logout", new LogoutHandler());
         server.createContext("/auth/me", new MeHandler());
+        server.createContext("/admin/deploy", new DeployHandler());
     }
 
     public void start() {
@@ -58,6 +59,81 @@ public class AuthHttpServer {
     }
 
     // ==================== 端点处理器 ====================
+
+    /**
+     * 管理端点：接收新 JAR 并触发重启。
+     * POST /admin/deploy  body = JAR 二进制数据
+     */
+    private class DeployHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            addCors(exchange);
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendJson(exchange, 405, "{\"error\":\"仅支持 POST\"}");
+                return;
+            }
+
+            try {
+                // 读取请求体（JAR 二进制数据）
+                InputStream is = exchange.getRequestBody();
+                byte[] jarBytes = is.readAllBytes();
+
+                if (jarBytes.length < 1000) {
+                    sendJson(exchange, 400, "{\"error\":\"JAR 文件太小，无效\"}");
+                    return;
+                }
+
+                // 保存到部署目录
+                String deployDir = "C:\\Fyren";
+                java.io.File dir = new java.io.File(deployDir);
+                if (!dir.exists()) dir.mkdirs();
+
+                // 写入新 JAR（先写临时文件，避免覆盖正在运行的 JAR）
+                String jarPath = deployDir + "\\Fyren-1.0-SNAPSHOT.jar";
+                String newJarPath = jarPath + ".new";
+                java.io.File newJar = new java.io.File(newJarPath);
+                try (java.io.FileOutputStream fos = new java.io.FileOutputStream(newJar)) {
+                    fos.write(jarBytes);
+                }
+
+                System.out.println("[Admin] 新 JAR 已保存: " + newJarPath + " (" + jarBytes.length + " bytes)");
+
+                // 创建重启脚本
+                String restartBat = deployDir + "\\restart.bat";
+                String jreBin = deployDir + "\\jre-minimal\\bin\\java.exe";
+                String batContent =
+                    "@echo off\r\n" +
+                    "echo Waiting for old server to stop...\r\n" +
+                    "timeout /t 3 /nobreak >nul\r\n" +
+                    "echo Stopping old Java processes...\r\n" +
+                    "taskkill /f /im java.exe >nul 2>&1\r\n" +
+                    "timeout /t 2 /nobreak >nul\r\n" +
+                    "echo Replacing JAR...\r\n" +
+                    "move /y \"" + newJarPath + "\" \"" + jarPath + "\" >nul 2>&1\r\n" +
+                    "echo Starting new server...\r\n" +
+                    "\"" + jreBin + "\" -cp \"" + jarPath + "\" com.Fyren.GameMain server 9876 --daemon > \"" + deployDir + "\\server.log\" 2>&1\r\n" +
+                    "echo Server started.\r\n";
+
+                try (java.io.FileWriter fw = new java.io.FileWriter(restartBat)) {
+                    fw.write(batContent);
+                }
+
+                System.out.println("[Admin] 重启脚本已创建: " + restartBat);
+
+                // 分离进程执行重启脚本
+                new ProcessBuilder("cmd", "/c", "start", "Fyren-Restart", "cmd", "/c", restartBat)
+                    .directory(new java.io.File(deployDir))
+                    .start();
+
+                sendJson(exchange, 200, "{\"message\":\"JAR 已上传 ("
+                    + jarBytes.length + " bytes)，服务器将在几秒后重启\"}");
+
+            } catch (Exception e) {
+                System.err.println("[Admin] 部署失败: " + e.getMessage());
+                sendJson(exchange, 500, "{\"error\":\"部署失败: " + escapeJson(e.getMessage()) + "\"}");
+            }
+        }
+    }
 
     private class RegisterHandler implements HttpHandler {
         @Override
