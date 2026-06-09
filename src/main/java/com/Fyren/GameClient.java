@@ -423,6 +423,10 @@ public class GameClient {
                 break;
 
             case MatchResponsePacket.STATUS_MATCHED:
+                // 幂等处理：已经在游戏中则忽略重传的 MATCH_RES
+                if (state == ClientState.PLAYING || state == ClientState.GAME_OVER) {
+                    return;
+                }
                 this.opponentId = packet.opponentId;
                 this.opponentPresetOrdinal = packet.opponentPresetOrdinal;
                 this.opponentReady = true;

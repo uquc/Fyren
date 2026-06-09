@@ -92,12 +92,19 @@ public class GameServer {
         // 启动 HTTP 状态 API
         try {
             httpStatusServer = new HttpStatusServer(8080);
-            httpStatusServer.setOnlinePlayers(udpServer.getClients().size());
+            httpStatusServer.setOnlinePlayers(0);
             httpStatusServer.setRedisService(redisService);
             httpStatusServer.start();
         } catch (IOException e) {
             System.err.println("[GameServer] HTTP 状态服务启动失败: " + e.getMessage());
         }
+
+        // 客户端计数变化时实时更新 HTTP 状态
+        udpServer.setOnClientCountChanged(count -> {
+            if (httpStatusServer != null) {
+                httpStatusServer.setOnlinePlayers(count);
+            }
+        });
 
         // 启动认证 API（端口 8081）
         try {

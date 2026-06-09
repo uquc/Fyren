@@ -63,17 +63,11 @@ public class GameMain {
      * 启动服务器
      */
     private static void startServer(String[] args) {
-        int port = GameServer.DEFAULT_PORT;
-        if (args.length > 1) {
-            try {
-                port = Integer.parseInt(args[1]);
-            } catch (NumberFormatException e) {
-                System.err.println("无效端口号，使用默认端口: " + GameServer.DEFAULT_PORT);
-            }
-        }
-
-        // 委托给GameServer的main方法
-        GameServer.main(new String[]{String.valueOf(port)});
+        // 转发所有剩余参数给 GameServer.main（包括 --daemon、端口号等）
+        String[] serverArgs = args.length > 1
+                ? java.util.Arrays.copyOfRange(args, 1, args.length)
+                : new String[0];
+        GameServer.main(serverArgs);
     }
 
     /**
@@ -177,8 +171,10 @@ public class GameMain {
             // 启动匹配
             client.requestMatch();
 
-            // SwingGameWindow 处理输入和渲染，主线程保持存活
+            // 保持主线程存活直到游戏结束
+            // MATCHED 状态也需要等待：onMatchFound 回调可能在另一个线程中尚未执行
             while (client.getState() == GameClient.ClientState.MATCHING ||
+                   client.getState() == GameClient.ClientState.MATCHED ||
                    client.getState() == GameClient.ClientState.PLAYING) {
                 try { Thread.sleep(100); } catch (InterruptedException e) { break; }
             }

@@ -30,6 +30,7 @@ public class UdpServer {
     // 回调
     private BiConsumer<Packet, ClientSession> onPacketReceived;
     private Consumer<Exception> onError;
+    private Consumer<Integer> onClientCountChanged;
 
     // 重传管理
     private final ConcurrentHashMap<Integer, PendingPacket> pendingPackets = new ConcurrentHashMap<>();
@@ -158,11 +159,16 @@ public class UdpServer {
      * 处理匹配请求
      */
     private void handleMatchRequest(MatchRequestPacket packet, InetSocketAddress addr) {
-        // 注册或更新客户端信息
+        // 注册或更新客户端信息（检查是否是新客户端）
+        boolean isNewClient = !clients.containsKey(packet.playerId);
         ClientSession session = clients.computeIfAbsent(packet.playerId, ClientSession::new);
         session.address = addr;
         session.rating = packet.playerRating;
         session.lastHeartbeat = System.currentTimeMillis();
+
+        if (isNewClient) {
+            notifyClientCountChanged();
+        }
 
         System.out.println("[UdpServer] 收到匹配请求: playerId=" + packet.playerId +
                 ", rating=" + packet.playerRating + ", addr=" + addr);
@@ -282,6 +288,10 @@ public class UdpServer {
                 return gs.player1Id == id || gs.player2Id == id;
             });
         }
+
+        if (!timeoutIds.isEmpty()) {
+            notifyClientCountChanged();
+        }
     }
 
     /**
@@ -387,6 +397,16 @@ public class UdpServer {
 
     public void setOnError(Consumer<Exception> callback) {
         this.onError = callback;
+    }
+
+    public void setOnClientCountChanged(Consumer<Integer> callback) {
+        this.onClientCountChanged = callback;
+    }
+
+    private void notifyClientCountChanged() {
+        if (onClientCountChanged != null) {
+            onClientCountChanged.accept(clients.size());
+        }
     }
 
     public ConcurrentHashMap<Integer, ClientSession> getClients() {

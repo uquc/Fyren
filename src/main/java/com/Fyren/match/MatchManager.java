@@ -60,6 +60,11 @@ public class MatchManager {
         int playerId = packet.playerId;
         int rating = packet.playerRating;
 
+        // 如果玩家已在游戏中（已有对手），忽略重传的匹配请求
+        if (session.opponentAddress != null) {
+            return;
+        }
+
         // 存储角色预设
         playerPresets.put(playerId, packet.presetOrdinal);
 

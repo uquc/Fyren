@@ -78,6 +78,6 @@ public class MatchResponsePacket extends Packet {
     @Override
     protected int getPayloadSize() {
         int addrLen = opponentAddress != null ? opponentAddress.getBytes().length : 0;
-        return 20 + addrLen; // 4*4(int) + 4(addrLen) + addrBytes + 4(port) + 4(presetOrdinal)
+        return 24 + addrLen; // 6 ints (4*6) + addrBytes
     }
 }
