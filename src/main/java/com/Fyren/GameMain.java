@@ -24,6 +24,10 @@ import java.net.SocketException;
 public class GameMain {
 
     public static void main(String[] args) {
+        // 强制 IPv4 栈，避免 Windows 双栈环境下 Java DatagramSocket
+        // 绑定 IPv6-mapped 地址导致无法接收 IPv4 客户端的 UDP 包
+        System.setProperty("java.net.preferIPv4Stack", "true");
+
         if (args.length == 0) {
             printUsage();
             return;
