@@ -229,41 +229,39 @@ Swing mode (legacy, retained):
   Swing Timer → GamePanel.repaint() → StickFigureRenderer
 ```
 
-## Current Session (2026-06-08)
+## Current Session (2026-06-09)
 
-**本次完成:** ECS 部署 + 安全组修复 + Auth API 外部可访问 + 关键 Bug 修复（UDP 接收线程崩溃）。
+**本次完成:** 6 个 Bug 修复 + 端到端双人对战测试（本地验证通过）+ onlinePlayers 实时更新 + GWT/WebGL 验证。
 
 ### 变更摘要
-1. **ECS 部署** — 游戏服务器 + Auth API 在 `115.29.230.57` 运行
-2. **安全组修复** — 添加 TCP 8081 入方向规则（之前缺失，CLAUDE.md 记错了）
-3. **deploy-ecs.ps1 修复** — `java -version` stderr 不中断脚本
-4. **deploy.zip 修复** — 包含 `jre-minimal/` 前缀 + `conf/` 目录（之前 zip 丢了 conf，导致 JRE 无法启动）
-5. **🔴 关键 Bug 修复 (`ae70368`)：**
-   - `Packet.deserialize()` — `type` 为 null 时 `switch(null)` 抛 NPE，**静默杀死整个 UDP 接收线程**
-   - `UdpServer.receiveLoop()` — 只 catch `IOException`，其他异常让线程直接死亡
-   - 修复：null check + `catch (Exception)` 兜底
-6. **ECS 服务验证：** HTTP 8080 ✅ | Auth API 8081 ✅ | UDP 9876 ✅
+1. **`GameMain.startServer()` 丢弃 `--daemon` 标志** — 只传端口给 GameServer.main()，修复为转发全部参数（`Arrays.copyOfRange`）。
+2. **`MatchResponsePacket.getPayloadSize()` 少算 4 字节** — 漏了 `opponentPresetOrdinal` 字段，导致 `BufferOverflowException` 静默丢弃所有匹配响应。这是 ECS 匹配失败的根因。
+3. **竞态条件：主循环在 MATCHED 状态退出** — while 条件不包含 MATCHED，导致 `onMatchFound` 回调执行前就 disconnect。
+4. **MatchManager 防止已匹配玩家重新入队** — 重传的匹配请求不再重复入队（检查 `session.opponentAddress != null`）。
+5. **GameClient 幂等处理 MATCH_RES** — 已在 PLAYING/GAME_OVER 时忽略重传的 MATCH_RES。
+6. **onlinePlayers 实时更新** — 添加 `UdpServer.onClientCountChanged` 回调，客户端连接/超时断开时实时更新 HttpStatusServer。
 
-### 已完成
-- [x] ECS 服务器部署并运行
-- [x] 安全组 TCP 8081 添加（阿里云控制台操作）
-- [x] Auth API 外部可访问（register/login 成功）
-- [x] NPE/UDP 接收线程崩溃 Bug 修复并推送
-- [x] 修复后 JAR 已上传 ECS 并重启
+### 端到端测试（本地）
+- ✅ 双客户端匹配流程：CONNECT → MATCHING → MATCHED → PLAYING
+- ✅ 无重复匹配、无提前断开
+- ✅ onlinePlayers 计数正确（0→1→2）
+
+### E2E 测试（ECS）
+- ❌ ECS 服务需要更新 JAR（当前运行的旧 JAR 有 BufferOverflowException bug）
+- ECS 端口 8080 离线、8081 正常、UDP 9876 待验证
 
 ### 未完成
-- [ ] **端到端双人对战测试** — 需启动两个客户端验证匹配→帧同步→碰撞→结果上报全链路
-  - 前置条件已满足：ECS 服务器运行中、Auth 可用、Bug 已修复
-  - 使用 `dual-client-test.bat` 启动两个客户端
-- [ ] **GWT/WebGL 浏览器版验证** — 编译产物在 `target/gwt-out/`，需 HTTP 服务器托管后浏览器实测
-- [ ] **onlinePlayers 计数 Bug** — `HttpStatusServer.onlinePlayers` 只在启动时设置一次，从未更新
+- [ ] **ECS 部署更新** — 上传修复后 JAR 到 115.29.230.57 并重启服务
+- [ ] **ECS 端到端双人对战测试** — ECS 服务更新后验证完整链路
+- [ ] **GWT `assets.txt` 生成** — 需重新运行 GWT 编译让 libGDX AssetGenerator 生成 assets.txt（当前 preloader 卡在 0%）
+- [ ] **DirectionTest.java 编译错误** — `Rect` 无法转换为 `java.awt.Rectangle`（测试文件未更新）
 
 ### 下次会话
-1. 端到端双人对战测试（开发者 Claude + 测试员 Claude 协作）
-2. 测试员 Claude 编写端到端测试用例
-3. GWT/WebGL 浏览器版验证
-4. onlinePlayers 实时更新修复
-5. Redis 部署到 ECS（当前降级为内存模式）
+1. ECS 部署更新 → 端到端双人对战测试（远程）
+2. GWT 重新编译（生成 assets.txt）
+3. DirectionTest 编译错误修复
+
+Last commit: `0d128a6 fix: 6 bug fixes — matchmaker, serialization, race condition, onlinePlayers`
 
 ## Historical Session (2026-06-07)
 

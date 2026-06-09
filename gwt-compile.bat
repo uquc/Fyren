@@ -62,6 +62,12 @@ java -cp "%CP%" com.google.gwt.dev.Compiler -war target\gwt-out -style PRETTY -l
 
 if %ERRORLEVEL% EQU 0 (
     echo.
+    echo === Post-processing assets ===
+    REM Generate valid assets.txt (gwt-assets/version.txt: 10 bytes, text/plain)
+    echo t:version.txt:version.txt:10:text/plain:1 > target\gwt-out\assets\assets.txt
+    REM Copy asset files to assets output directory
+    if exist gwt-assets\version.txt copy /y gwt-assets\version.txt target\gwt-out\assets\version.txt >nul
+    echo.
     echo === GWT Compilation Complete ===
     echo Output: target\gwt-out\
     dir /b target\gwt-out\fyren\ 2>nul

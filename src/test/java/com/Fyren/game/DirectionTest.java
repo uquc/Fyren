@@ -168,10 +168,11 @@ public class DirectionTest {
             }
         }
 
-        java.awt.Rectangle atkBox = p2.getAttackBox();
+        Rect atkBox = p2.getAttackBox();
         // P2 在 x=700 面朝左，攻击框应在左(小x)侧延伸
         assertTrue(atkBox.width > 0, "P2 应在判定帧有攻击框");
-        assertTrue(atkBox.getCenterX() < p2.getX(),
+        double centerX = atkBox.x + atkBox.width / 2.0;
+        assertTrue(centerX < p2.getX(),
             "P2(面朝左) 攻击框中心应在角色左侧。atkBox.x=" + atkBox.x + ", p2.x=" + p2.getX());
     }
 

@@ -4,6 +4,8 @@ import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.backends.gwt.GwtApplication;
 import com.badlogic.gdx.backends.gwt.GwtApplicationConfiguration;
+import com.badlogic.gdx.backends.gwt.preloader.Preloader.PreloaderCallback;
+import com.badlogic.gdx.backends.gwt.preloader.Preloader.PreloaderState;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
@@ -19,6 +21,15 @@ import com.Fyren.render.libgdx.MotionTrailEffect;
 import com.Fyren.render.libgdx.ParticleEffects;
 import com.Fyren.render.libgdx.SpriteRenderer;
 import com.Fyren.sync.InputCommand;
+
+import com.google.gwt.dom.client.Style.Unit;
+import com.google.gwt.user.client.ui.HasHorizontalAlignment;
+import com.google.gwt.user.client.ui.HasVerticalAlignment;
+import com.google.gwt.user.client.ui.InlineHTML;
+import com.google.gwt.user.client.ui.Label;
+import com.google.gwt.user.client.ui.Panel;
+import com.google.gwt.user.client.ui.SimplePanel;
+import com.google.gwt.user.client.ui.VerticalPanel;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +62,40 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
     @Override
     public GwtApplicationConfiguration getConfig() {
         return new GwtApplicationConfiguration(960, 540);
+    }
+
+    /** 自定义 preloader — 无 logo 依赖，空资源列表也能正常完成 */
+    @Override
+    public PreloaderCallback getPreloaderCallback() {
+        final VerticalPanel preloaderPanel = new VerticalPanel();
+        preloaderPanel.setStyleName("gdx-preloader");
+        preloaderPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_CENTER);
+        preloaderPanel.setVerticalAlignment(HasVerticalAlignment.ALIGN_MIDDLE);
+
+        final Label title = new Label("Fyren");
+        title.setStyleName("gdx-title");
+        preloaderPanel.add(title);
+
+        final SimplePanel meterPanel = new SimplePanel();
+        meterPanel.setStyleName("gdx-meter");
+        final InlineHTML meter = new InlineHTML();
+        final com.google.gwt.dom.client.Style meterStyle = meter.getElement().getStyle();
+        meterStyle.setWidth(0, Unit.PCT);
+        meterPanel.add(meter);
+        preloaderPanel.add(meterPanel);
+
+        getRootPanel().add(preloaderPanel);
+        return new PreloaderCallback() {
+            @Override
+            public void error(String file) {
+                System.out.println("preloader error: " + file);
+            }
+
+            @Override
+            public void update(PreloaderState state) {
+                meterStyle.setWidth(100f * state.getProgress(), Unit.PCT);
+            }
+        };
     }
 
     @Override
