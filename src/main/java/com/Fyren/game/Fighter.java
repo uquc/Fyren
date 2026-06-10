@@ -33,6 +33,11 @@ public class Fighter {
     private boolean isAttacking = false; // 判定帧期间为true
     private boolean isHitFlag = false;   // 本帧是否被命中
 
+    // --- 音效触发标志（由 GameScreen 消费并清除） ---
+    private boolean audioDashTrigger = false;
+    private boolean audioSpecialTrigger = false;
+    private boolean audioBlockedTrigger = false;
+
     // --- 僵直 ---
     private int stunRemaining = 0;
     int lastRawDamageReceived = 0; // 本帧受到的原始伤害（防御减免前），供 hit-stop 判断用（包内可见）
@@ -173,6 +178,7 @@ public class Fighter {
             startAction(ActionType.THROW);
         } else if (cmd.special && isSpecialReady()) {
             startAction(ActionType.SPECIAL);
+            audioSpecialTrigger = true;
             onSpecialUsed();
         }
 
@@ -286,6 +292,7 @@ public class Fighter {
         dashDirection = direction;
         dashTimer = DASH_DURATION;
         actionState = ActionState.DASH;
+        audioDashTrigger = true;
         facingRight = (direction > 0);
         return true;
     }
@@ -464,6 +471,18 @@ public class Fighter {
     public boolean isHit() { return isHitFlag; }
     public boolean isBlocking() { return isBlocking; }
     public boolean isInStun() { return actionState == ActionState.STUN; }
+
+    // --- 音效触发标志 ---
+    public boolean consumeAudioDashTrigger() {
+        boolean v = audioDashTrigger; audioDashTrigger = false; return v;
+    }
+    public boolean consumeAudioSpecialTrigger() {
+        boolean v = audioSpecialTrigger; audioSpecialTrigger = false; return v;
+    }
+    public boolean consumeAudioBlockedTrigger() {
+        boolean v = audioBlockedTrigger; audioBlockedTrigger = false; return v;
+    }
+    public void setAudioBlockedTrigger() { this.audioBlockedTrigger = true; }
     public int getStunRemaining() { return stunRemaining; }
     public int getLastRawDamageReceived() { return lastRawDamageReceived; }
     public ActionState getActionState() { return actionState; }

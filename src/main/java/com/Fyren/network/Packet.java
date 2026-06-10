@@ -16,7 +16,9 @@ public abstract class Packet {
         MATCH_REQ(4),  // 匹配请求
         MATCH_RES(5),  // 匹配结果
         ACK(6),        // 确认包
-        RESULT(7);     // 比赛结果
+        RESULT(7),     // 比赛结果
+        P2P_PING(8),   // NAT 打洞请求
+        P2P_PONG(9);   // NAT 打洞应答
 
         public final int code;
         Type(int code) { this.code = code; }
@@ -54,6 +56,8 @@ public abstract class Packet {
             case MATCH_RES: return MatchResponsePacket.fromBuffer(buf, seq);
             case ACK: return AckPacket.fromBuffer(buf, seq);
             case RESULT: return ResultPacket.fromBuffer(buf, seq);
+            case P2P_PING: return P2pPacket.fromBuffer(buf, seq, Type.P2P_PING);
+            case P2P_PONG: return P2pPacket.fromBuffer(buf, seq, Type.P2P_PONG);
             default: return null;
         }
     }

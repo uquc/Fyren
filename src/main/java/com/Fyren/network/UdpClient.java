@@ -14,6 +14,10 @@ public class UdpClient {
     private volatile boolean running = false;
     private ExecutorService receiveExecutor;
 
+    // P2P 直连
+    private volatile InetSocketAddress p2pAddress = null;
+    private volatile boolean p2pActive = false;
+
     // 回调函数
     private Consumer<Packet> onPacketReceived;
     private Consumer<Exception> onError;
@@ -84,7 +88,7 @@ public class UdpClient {
     }
 
     /**
-     * 发送不可靠UDP包（用于高频状态同步）
+     * 发送不可靠UDP包（始终发往服务器，心跳/匹配等）
      */
     public void sendUnreliable(Packet packet) {
         try {
@@ -95,6 +99,39 @@ public class UdpClient {
             if (onError != null) onError.accept(e);
         }
     }
+
+    /**
+     * 发送输入到对手 — P2P 激活时直连，否则走服务器中继
+     */
+    public void sendInputToOpponent(InputPacket packet) {
+        InetSocketAddress target = p2pActive && p2pAddress != null ? p2pAddress : serverAddress;
+        try {
+            byte[] data = packet.serialize();
+            DatagramPacket dp = new DatagramPacket(data, data.length, target);
+            socket.send(dp);
+        } catch (IOException e) {
+            if (onError != null) onError.accept(e);
+        }
+    }
+
+    /** 发送原始字节到指定地址（P2P 握手机制使用） */
+    public void sendRaw(byte[] data, InetSocketAddress addr) {
+        try {
+            DatagramPacket dp = new DatagramPacket(data, data.length, addr);
+            socket.send(dp);
+        } catch (IOException e) {
+            if (onError != null) onError.accept(e);
+        }
+    }
+
+    /** 启用 P2P 直连 */
+    public void enableP2P(InetSocketAddress addr) {
+        this.p2pAddress = addr;
+        this.p2pActive = true;
+    }
+
+    public boolean isP2pActive() { return p2pActive; }
+    public InetSocketAddress getP2pAddress() { return p2pAddress; }
 
     private void sendHeartbeat() {
         HeartbeatPacket hb = new HeartbeatPacket(generateSequence());

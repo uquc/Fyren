@@ -31,12 +31,16 @@ public class GameScreen {
     private HitEffects hitEffects;
     private ParticleEffects particleEffects;
     private MotionTrailEffect motionTrailEffect;
+    private AudioManager audioManager;
 
     private int frameNumber = 0;
     private final boolean isNetworkMode;
 
     // 背景渲染
     private final ShapeRenderer bgShapes;
+
+    // KO 音效去重
+    private boolean koPlayed = false;
 
     // 网络模式引用
     private com.Fyren.GameClient gameClient = null;
@@ -75,6 +79,7 @@ public class GameScreen {
     public void setHitEffects(HitEffects e) { this.hitEffects = e; }
     public void setParticleEffects(ParticleEffects e) { this.particleEffects = e; }
     public void setMotionTrailEffect(MotionTrailEffect e) { this.motionTrailEffect = e; }
+    public void setAudioManager(AudioManager a) { this.audioManager = a; }
     public void setGameClient(com.Fyren.GameClient client) { this.gameClient = client; }
 
     public GameWorld getGameWorld() { return gameWorld; }
@@ -127,6 +132,9 @@ public class GameScreen {
             if (particleEffects != null) particleEffects.spawnHitSpark(p2.getX(), p2.getY() + 50);
             if (cameraController != null) cameraController.shake(3f + dmg2 * 0.5f, 0.15f);
         }
+
+        // 音效
+        triggerAudio(p1, p2, dmg1, dmg2);
 
         // 更新视觉效果
         if (hitEffects != null) hitEffects.update(delta);
@@ -183,6 +191,9 @@ public class GameScreen {
             netHp1Before = p1.getHealth();
             netHp2Before = p2.getHealth();
 
+            // 音效
+            triggerAudio(p1, p2, dmg1, dmg2);
+
             // 更新视觉效果
             if (hitEffects != null) hitEffects.update(delta);
             if (particleEffects != null) particleEffects.update(delta);
@@ -191,6 +202,42 @@ public class GameScreen {
             cameraController.update(p1, p2, delta);
         } finally {
             gameClient.releaseReadLock();
+        }
+    }
+
+    // === 音效触发 ===
+
+    private void triggerAudio(Fighter p1, Fighter p2, int dmg1, int dmg2) {
+        if (audioManager == null) return;
+
+        // 命中音效
+        if (dmg1 > 0) {
+            int rawDmg = p1.getLastRawDamageReceived();
+            audioManager.playHitSound(rawDmg);
+            if (p1.consumeAudioBlockedTrigger()) audioManager.playBlockSound();
+        }
+        if (dmg2 > 0) {
+            int rawDmg = p2.getLastRawDamageReceived();
+            audioManager.playHitSound(rawDmg);
+            if (p2.consumeAudioBlockedTrigger()) audioManager.playBlockSound();
+        }
+
+        // 动作音效
+        if (p1.consumeAudioDashTrigger()) audioManager.playDashSound();
+        if (p1.consumeAudioSpecialTrigger()) audioManager.playSpecialSound();
+        if (p2.consumeAudioDashTrigger()) audioManager.playDashSound();
+        if (p2.consumeAudioSpecialTrigger()) audioManager.playSpecialSound();
+
+        // KO 音效（只播放一次）
+        GameWorld gw = isNetworkMode && gameClient != null ? gameClient.getGameWorldReadLocked() : gameWorld;
+        boolean needUnlock = isNetworkMode && gameClient != null;
+        try {
+            if (!koPlayed && gw.isGameOver()) {
+                audioManager.playKoSound();
+                koPlayed = true;
+            }
+        } finally {
+            if (needUnlock) gameClient.releaseReadLock();
         }
     }
 

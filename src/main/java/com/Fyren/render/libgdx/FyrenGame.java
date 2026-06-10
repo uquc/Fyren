@@ -61,6 +61,7 @@ public class FyrenGame extends ApplicationAdapter {
         gameScreen.setHitEffects(new HitEffects());
         gameScreen.setParticleEffects(new ParticleEffects());
         gameScreen.setMotionTrailEffect(new MotionTrailEffect());
+        gameScreen.setAudioManager(new AudioManager());
 
         if ("demo".equals(mode)) {
             Gdx.graphics.setTitle("Fyren — "

@@ -50,12 +50,14 @@ public class GameClient {
     private UdpClient udpClient;
     private GameWorld gameWorld;
     private FrameSyncManager frameSyncManager;
+    private P2PHandshake p2pHandshake;
 
     // 状态
     private volatile ClientState state = ClientState.IDLE;
     private volatile int opponentId = -1;
     private volatile int opponentPresetOrdinal = 1; // 默认TAKESHI
     private volatile boolean opponentReady = false;
+    private volatile java.net.InetSocketAddress opponentAddress = null; // P2P 握手用
 
     // 帧计数器（用于输入发送）
     private final AtomicInteger frameCounter = new AtomicInteger(0);
@@ -295,6 +297,12 @@ public class GameClient {
         frameSyncManager.setLocalPlayerId(localPlayerId);
         frameSyncManager.setLocalInputProvider(this::getCurrentLocalInput);
 
+        // 启动 P2P UDP 打洞握手（异步，失败则降级中继）
+        if (opponentAddress != null) {
+            p2pHandshake = new P2PHandshake(udpClient);
+            p2pHandshake.start(opponentAddress);
+        }
+
         // 游戏结束回调：将游戏世界 winnerId (1=P1, 2=P2, 0=平局) 转换为实际玩家 ID
         frameSyncManager.setOnGameOver(() -> {
             int worldWinnerId = gameWorld.getWinnerId();
@@ -365,7 +373,7 @@ public class GameClient {
     public void sendInputToOpponent(InputCommand cmd) {
         if (cmd == null || cmd.isEmpty()) return;
         InputPacket packet = InputCodec.encode(cmd, nextSequence());
-        udpClient.sendUnreliable(packet);
+        udpClient.sendInputToOpponent(packet);
     }
 
     // ========== 网络处理 ==========
@@ -409,6 +417,15 @@ public class GameClient {
                 // 状态同步包（用于观战或断线重连）
                 handleStatePacket((StatePacket) packet);
                 break;
+            case P2P_PING:
+                // 对方发来打洞请求 → 回复 P2P_PONG
+                if (p2pHandshake != null) p2pHandshake.onPingReceived(opponentAddress);
+                break;
+            case P2P_PONG:
+                // 收到打洞应答 → 握手成功
+                if (p2pHandshake != null) p2pHandshake.onPongReceived();
+                if (opponentAddress != null) udpClient.enableP2P(opponentAddress);
+                break;
         }
     }
 
@@ -445,6 +462,7 @@ public class GameClient {
                 this.opponentId = packet.opponentId;
                 this.opponentPresetOrdinal = packet.opponentPresetOrdinal;
                 this.opponentReady = true;
+                this.opponentAddress = new java.net.InetSocketAddress(packet.opponentAddress, packet.opponentPort);
                 setState(ClientState.MATCHED);
 
                 System.out.printf("[GameClient] 匹配成功! 对手: player%d (rating=%d) preset=%s @ %s:%d\n",

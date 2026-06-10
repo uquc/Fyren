@@ -13,6 +13,7 @@ import com.badlogic.gdx.utils.ScreenUtils;
 import com.Fyren.game.Fighter;
 import com.Fyren.game.FighterPreset;
 import com.Fyren.game.GameWorld;
+import com.Fyren.render.libgdx.AudioManager;
 import com.Fyren.render.libgdx.CameraController;
 import com.Fyren.render.libgdx.GdxInputHandler;
 import com.Fyren.render.libgdx.HitEffects;
@@ -53,6 +54,7 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
     private HitEffects hitEffects;
     private ParticleEffects particleEffects;
     private MotionTrailEffect motionTrailEffect;
+    private AudioManager audioManager;
 
     // --- Background ---
     private ShapeRenderer bgShapes;
@@ -121,6 +123,7 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
         hitEffects = new HitEffects();
         particleEffects = new ParticleEffects();
         motionTrailEffect = new MotionTrailEffect();
+        audioManager = new AudioManager();  // GWT 静默降级
         bgShapes = new ShapeRenderer();
 
         frameNumber = 0;
@@ -165,6 +168,9 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
             cameraController.shake(3f + dmg2 * 0.5f, 0.15f);
         }
 
+        // 音效（GWT 静默降级）
+        triggerAudio(p1, p2, dmg1, dmg2);
+
         hitEffects.update(delta);
         particleEffects.update(delta);
         motionTrailEffect.sample(p1, p2, delta);
@@ -197,6 +203,25 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
 
     @Override
     public void resume() {}
+
+    // === 音效触发（GWT 降级静默） ===
+
+    private void triggerAudio(Fighter p1, Fighter p2, int dmg1, int dmg2) {
+        if (audioManager == null) return;
+        if (dmg1 > 0) {
+            audioManager.playHitSound(p1.getLastRawDamageReceived());
+            if (p1.consumeAudioBlockedTrigger()) audioManager.playBlockSound();
+        }
+        if (dmg2 > 0) {
+            audioManager.playHitSound(p2.getLastRawDamageReceived());
+            if (p2.consumeAudioBlockedTrigger()) audioManager.playBlockSound();
+        }
+        if (p1.consumeAudioDashTrigger()) audioManager.playDashSound();
+        if (p1.consumeAudioSpecialTrigger()) audioManager.playSpecialSound();
+        if (p2.consumeAudioDashTrigger()) audioManager.playDashSound();
+        if (p2.consumeAudioSpecialTrigger()) audioManager.playSpecialSound();
+        if (gameWorld.isGameOver()) audioManager.playKoSound();
+    }
 
     @Override
     public void dispose() {

@@ -68,6 +68,10 @@ public class CollisionSystem {
         int baseDmg = calculateDamage(attacker);
 
         boolean isThrow = (attacker.getActionType() == Fighter.ActionType.THROW);
+        // 格挡触发音效标记（takeDamage 会清除 isBlocking，需提前设置）
+        if (defender.isBlocking() && !isThrow) {
+            defender.setAudioBlockedTrigger();
+        }
         // 提前计算实际伤害，避免 takeDamage() 清除 isBlocking 后误判
         int effectiveDmg = defender.isBlocking() && !isThrow ? baseDmg / 2 : baseDmg;
         defender.takeDamage(baseDmg, isThrow);
