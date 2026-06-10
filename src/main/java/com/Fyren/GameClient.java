@@ -294,6 +294,21 @@ public class GameClient {
         frameSyncManager = new FrameSyncManager(gameWorld);
         frameSyncManager.setLocalPlayerId(localPlayerId);
         frameSyncManager.setLocalInputProvider(this::getCurrentLocalInput);
+
+        // 游戏结束回调：将游戏世界 winnerId (1=P1, 2=P2, 0=平局) 转换为实际玩家 ID
+        frameSyncManager.setOnGameOver(() -> {
+            int worldWinnerId = gameWorld.getWinnerId();
+            int actualWinnerId;
+            if (worldWinnerId == 0) {
+                actualWinnerId = -1; // 平局
+            } else if (worldWinnerId == 1) {
+                actualWinnerId = localPlayerId;
+            } else {
+                actualWinnerId = opponentId;
+            }
+            reportResult(actualWinnerId);
+        });
+
         frameSyncManager.start();
 
         if (callback != null) callback.onGameStart();

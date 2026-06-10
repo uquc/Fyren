@@ -66,6 +66,8 @@ public class HttpStatusServer {
     public void setOnlinePlayers(int count) { onlinePlayers.set(count); }
     public void incrementOnlinePlayers(int delta) { onlinePlayers.addAndGet(delta); }
     public void setActiveMatches(int count) { activeMatches.set(count); }
+    public void incrementActiveMatches() { activeMatches.incrementAndGet(); }
+    public void decrementActiveMatches() { activeMatches.decrementAndGet(); }
     public void incrementMatches() { totalMatches.incrementAndGet(); }
 
     // === 端点处理器 ===

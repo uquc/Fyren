@@ -29,6 +29,13 @@ public class MatchManager {
     // 序列号生成
     private int sequenceCounter = 0;
 
+    // 匹配生命周期回调（由 GameServer 注入，用于追踪活跃匹配数）
+    private Runnable onMatchCreated;
+    private Runnable onMatchEnded;
+
+    public void setOnMatchCreated(Runnable callback) { this.onMatchCreated = callback; }
+    public void setOnMatchEnded(Runnable callback) { this.onMatchEnded = callback; }
+
     public MatchManager(UdpServer server) {
         this.server = server;
         this.matchmaker = new Matchmaker();
@@ -137,6 +144,16 @@ public class MatchManager {
 
         System.out.printf("[MatchManager] 已通知双方匹配结果: player%d ↔ player%d\n",
                 p1.playerId, p2.playerId);
+
+        // 通知匹配创建（用于活跃匹配计数）
+        if (onMatchCreated != null) onMatchCreated.run();
+    }
+
+    /**
+     * 通知匹配结束（由 GameServer 在收到 ResultPacket 时调用）
+     */
+    public void notifyMatchEnded() {
+        if (onMatchEnded != null) onMatchEnded.run();
     }
 
     /**

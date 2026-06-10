@@ -10,6 +10,9 @@ import com.Fyren.redis.RedisService;
 
 import java.io.IOException;
 import java.net.SocketException;
+import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 游戏服务器 — 启动UDP服务器和匹配管理器
@@ -34,6 +37,9 @@ public class GameServer {
     private HttpStatusServer httpStatusServer;
     private RedisService redisService;
     private AuthHttpServer authHttpServer;
+
+    // 去重：避免双方客户端都上报 ResultPacket 导致重复统计
+    private final Set<String> reportedMatches = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     public GameServer(int port) {
         this.port = port;
@@ -64,6 +70,11 @@ public class GameServer {
                 matchManager.handleMatchRequest((MatchRequestPacket) packet, session);
             } else if (packet instanceof ResultPacket) {
                 ResultPacket rp = (ResultPacket) packet;
+                // 去重：同一场比赛双方客户端都可能上报，只处理首次
+                String matchKey = Math.min(rp.player1Id, rp.player2Id) + "-" + Math.max(rp.player1Id, rp.player2Id);
+                if (!reportedMatches.add(matchKey)) {
+                    return; // 已处理过，跳过
+                }
                 System.out.printf("[GameServer] 收到比赛结果: P%d vs P%d, 胜者=%d\n",
                         rp.player1Id, rp.player2Id, rp.winnerId);
                 reportMatch(rp.player1Id, rp.player2Id, rp.winnerId);
@@ -87,9 +98,8 @@ public class GameServer {
         });
 
         udpServer.start();
-        matchManager.start();
 
-        // 启动 HTTP 状态 API
+        // 启动 HTTP 状态 API（在 matchManager 之前初始化，以便回调引用）
         try {
             httpStatusServer = new HttpStatusServer(8080);
             httpStatusServer.setOnlinePlayers(0);
@@ -105,6 +115,15 @@ public class GameServer {
                 httpStatusServer.setOnlinePlayers(count);
             }
         });
+
+        // 匹配生命周期回调：追踪活跃匹配数
+        matchManager.setOnMatchCreated(() -> {
+            if (httpStatusServer != null) httpStatusServer.incrementActiveMatches();
+        });
+        matchManager.setOnMatchEnded(() -> {
+            if (httpStatusServer != null) httpStatusServer.decrementActiveMatches();
+        });
+        matchManager.start();
 
         // 启动认证 API（端口 8081）
         try {
@@ -143,6 +162,7 @@ public class GameServer {
     public void reportMatch(int player1Id, int player2Id, int winnerId) {
         if (matchManager != null) {
             matchManager.reportMatchResult(player1Id, player2Id, winnerId);
+            matchManager.notifyMatchEnded(); // → onMatchEnded 回调 → decrementActiveMatches
         }
         if (httpStatusServer != null) {
             httpStatusServer.incrementMatches();

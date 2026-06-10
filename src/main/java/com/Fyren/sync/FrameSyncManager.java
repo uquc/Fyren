@@ -36,6 +36,9 @@ public class FrameSyncManager {
     private final Map<Integer, InputCommand> lastKnownInputs = new ConcurrentHashMap<>();
     private int confirmedFrame = 0; // 已确认的最高帧
 
+    // 游戏结束回调（由 GameClient 注入，用于上报比赛结果）
+    private Runnable onGameOver;
+
     public FrameSyncManager(GameWorld gameWorld) {
         this.gameWorld = gameWorld;
         this.localInputBuffer = new InputBuffer(120); // 2秒缓冲
@@ -47,6 +50,10 @@ public class FrameSyncManager {
 
     public void setLocalPlayerId(int localPlayerId) {
         this.localPlayerId = localPlayerId;
+    }
+
+    public void setOnGameOver(Runnable callback) {
+        this.onGameOver = callback;
     }
 
     /**
@@ -87,7 +94,14 @@ public class FrameSyncManager {
                 // 4. 推进游戏逻辑
                 gameWorld.update(inputsForSimulation, currentFrame);
 
-                // 5. 检查是否需要回滚
+                // 5. 检测游戏结束
+                if (gameWorld.isGameOver()) {
+                    running = false;
+                    if (onGameOver != null) onGameOver.run();
+                    return;
+                }
+
+                // 6. 检查是否需要回滚
                 checkAndRollback(currentFrame);
 
                 currentFrame++;
