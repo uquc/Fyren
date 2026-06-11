@@ -50,7 +50,7 @@ Dependencies: Lombok (provided), JUnit Jupiter 5.10.2 (test), libGDX 1.12.1 (gdx
 
 ## Architecture
 
-**Fyren** is a 2D fighting game with UDP networking, hidden-MMR matchmaking, lockstep + rollback frame sync, and libGDX rendering. Java 17+, Maven, single jar for both client and server. ~52 source files.
+**Fyren** is a 2D fighting game with UDP networking, hidden-MMR matchmaking, lockstep + rollback frame sync, P2P UDP hole punch, and libGDX rendering. Java 17+, Maven, single jar for both client and server. ~58 source files.
 
 ```
 com.Fyren
@@ -73,7 +73,7 @@ com.Fyren
 │   │   HitEffects        — hit-stop (4-8 frames), white flash, knockback displacement
 │   │   ParticleEffects   — hit sparks, KO explosion, dash dust
 │   │   MotionTrailEffect — afterimage trail during dash/special
-│   │   AudioManager      — sound effect skeleton (Gdx.audio, currently silent)
+│   │   AudioManager      — 6 CC0 WAV sound effects (hit/special/dash/block/KO), libGDX Sound API
 │   │   └── gwt/
 │   │       FyrenGwtLauncher — GWT/WebGL entry point (demo mode only, no network)
 │   ├── SwingGameWindow   — JFrame 960×540, Swing Timer 16ms, for network client mode
@@ -82,12 +82,14 @@ com.Fyren
 │   ├── StickFigureRenderer — static Java2D stick-figure drawing per stance/preset
 │   └── KeyInputHandler   — KeyListener with key-state bitset, double-tap dash detection, P1/P2 mappings
 ├── network/
-│   Packet (abstract)     — 8-byte header, Type enum: INPUT/STATE/HEARTBEAT/MATCH_REQ/MATCH_RES/ACK/RESULT
+│   Packet (abstract)     — 8-byte header, Type enum: INPUT/STATE/HEARTBEAT/MATCH_REQ/MATCH_RES/ACK/RESULT/P2P_PING/P2P_PONG
 │   MatchRequestPacket    — playerId, rating, presetOrdinal
 │   MatchResponsePacket   — opponentId, rating, address, opponentPresetOrdinal
 │   ResultPacket          — player1Id, player2Id, winnerId (game result → MMR update)
-│   HttpStatusServer      — embedded HTTP server on port 8080, /status JSON endpoint
-│   UdpClient, UdpServer  — reliable(ACK+retransmit) + unreliable(fire-and-forget) channels
+│   P2PHandshake          — async NAT traversal (P2P_PING ×10 → wait P2P_PONG → 2s timeout → relay fallback)
+│   P2pPacket             — minimal header-only packet for hole punching (no payload)
+│   HttpStatusServer      — embedded HTTP server on port 8080, /status JSON endpoint, /admin/deploy hot-update
+│   UdpClient, UdpServer  — reliable(ACK+retransmit) + unreliable(fire-and-forget) channels, P2P routing
 ├── sync/
 │   FrameSyncManager  — lockstep + speculative execution + rollback (max 10 frames)
 │   InputBuffer, InputCommand (7 bools: up/down/left/right/punch/kick/special), InputCodec
@@ -106,7 +108,8 @@ com.Fyren
 ├── match/
 │   Matchmaker (ELO + diffusion window), MatchManager (preset forwarding, MMR update on result)
 ├── util/             InputCodec
-├── GameMain.java     — CLI router: server/client/demo/register/login modes, --preset parsing
+├── tools/            SoundGenerator.java — procedural WAV generator (sin/noise/sweep)
+├── GameMain.java     — CLI router: server/client/demo/register/login modes, --preset parsing, force IPv4 stack
 ├── GameServer.java   — UdpServer + MatchManager + RedisService + AuthHttpServer + HttpStatusServer
 └── GameClient.java   — UdpClient + FrameSyncManager + GameWorld + auth token methods
 ```
@@ -122,7 +125,8 @@ FyrenLauncher (main, CLI) → FyrenGame (ApplicationListener)
     │   ├── HitEffects update + spawn on damage detected
     │   ├── ParticleEffects update + spawnHitSpark()
     │   ├── MotionTrailEffect.sample()
-    │   └── CameraController.update(p1, p2, delta)
+    │   ├── CameraController.update(p1, p2, delta)
+    │   └── triggerAudio(p1, p2, dmg1, dmg2)  — consume fighter audio flags
     └── render()
         ├── drawBackground (ground + grid via ShapeRenderer)
         ├── SpriteRenderer (procedural textures + SpriteBatch)
@@ -149,16 +153,20 @@ FyrenLauncher (main, CLI) → FyrenGame (ApplicationListener)
 - **HTTP status API** — HttpStatusServer on port 8080, returns JSON with player count, Redis status, MMR rankings via /leaderboard.
 - **Auth API** — AuthHttpServer on port 8081, JWT双Token机制 (access 15min + refresh 7d), bcrypt密码哈希, refresh token轮换防重放, Redis降级内存模式。
 - **Redis 数据模型** — user:* (Hash), refresh:* (String TTL 7d), blacklist:* (TTL), online:* (TTL 30s), mmr:leaderboard (ZSet)
+- **P2P UDP 打洞** — 匹配成功后异步发送 P2P_PING ×10（20ms 间隔），收到 P2P_PONG 即启用直连。2s 超时降级服务器中继。纯 Java 实现，无外部 STUN/TURN 依赖。
+- **音效系统** — 6 个 CC0 WAV 文件（16-bit PCM mono 22050Hz），libGDX Sound API 加载播放。Fighter 使用 consume 模式标志（一次读取即清除）避免重复触发。GWT 后端静默降级。
 - **World→Screen mapping** — screenX = screenCenter + (worldX - worldCenter) * scale, clamped to margins.
 
 ## Known Limitations
 
-- No P2P yet — all input through server relay.
+- P2P requires both clients behind NAT that supports UDP hole punching; symmetric NAT falls back to server relay.
+- AudioManager silently degrades on GWT/WebGL (libGDX GWT backend has no Gdx.audio).
 - Swing render files (`SwingGameWindow`, `DemoGameWindow`, `GamePanel`, `StickFigureRenderer`, `KeyInputHandler`) are superseded by libGDX layer but retained for backward compatibility.
-- No sound effects loaded (AudioManager is skeleton only).
 - No background art (black background with procedural ground/grid lines).
 - `float` coordinates — fine for single-platform (Java strictfp), not cross-platform deterministic.
 - GWT/WebGL target compiles to JS (5 permutations, ~6.8MB each), served via `target/gwt-out/index.html`. Requires manual `mvn dependency:sources` for gdx/gdx-backend-gwt before first build.
+- ECS Redis 未连接（内存模式，重启丢失用户数据）。
+- 无跳跃设计。
 
 ## ECS Deployment (Task 11 — DONE 🎉)
 
@@ -180,16 +188,19 @@ FyrenLauncher (main, CLI) → FyrenGame (ApplicationListener)
 **Running Services:**
 | Service | Port | Status |
 |---------|------|--------|
-| Portfolio website | 80 | ✅ |
+| Portfolio website (IIS) | 80 | ✅ |
+| Caddy HTTPS proxy | 443 | ✅ Let's Encrypt, `115.29.230.57.nip.io` |
 | HTTP status API | 8080 | ✅ |
-| Auth API | 8081 | ✅ (local only, not yet on ECS) |
+| Auth API | 8081 | ✅ |
 | Game server (UDP) | 9876 | ✅ |
 
 **Deployment method:** RDP file transfer + jlink minimal JRE (java.base, java.logging, java.net.http, java.management, jdk.unsupported, jdk.httpserver)
 - `C:\Fyren\` — fat JAR + JRE
+- `C:\Fyren\caddy\` — Caddy v2.7.6 + Caddyfile（HTTPS 反向代理）
 - `C:\inetpub\wwwroot\index.html` — IIS static site
 - Daemon mode (`--daemon` flag) + shutdown hook for graceful stop
 - Firewall rules configured via netsh
+- Caddy HTTPS via `Start-ScheduledTask -TaskName "Fyren-Caddy-HTTPS"` (auto-start on boot)
 
 ## Data Flow
 
@@ -201,9 +212,10 @@ libGDX mode (current production):
       → GameScreen.updateDemo()
       → GameWorld.update() → CollisionSystem
 
-  Network (new — FrameSyncManager integrated):
+  Network (FrameSyncManager with P2P):
     Keyboard → GdxInputHandler → InputCommand
       → GameScreen.updateNetwork() → GameClient.setCurrentLocalInput() + sendInputToOpponent()
+      → UdpClient.sendInputToOpponent() — P2P 直连 if active, else 服务器中继
     FrameSyncManager.gameLoop (independent thread) → GameWorld.update() → CollisionSystem
     libGDX render thread → GameScreen.render() → reads GameWorld via GameClient.getGameWorldReadLocked()
 
@@ -211,13 +223,6 @@ libGDX mode (current production):
     → SpriteRenderer (procedural textures + SpriteBatch)
     → HitEffects / ParticleEffects / MotionTrailEffect
     → HudRenderer
-
-Network mode (planned — FrameSyncManager integration pending):
-  Keyboard → GdxInputHandler → InputCommand
-    → FrameSyncManager.collectLocalInput()
-    → UdpClient.sendUnreliable()
-  FrameSyncManager.gameLoop → GameWorld.update() → CollisionSystem
-  libGDX render thread → GameScreen.render()
 
 WebGL (GWT compiled JS):
   Keyboard → GdxInputHandler (Gdx.input polling) → InputCommand
@@ -229,78 +234,111 @@ Swing mode (legacy, retained):
   Swing Timer → GamePanel.repaint() → StickFigureRenderer
 ```
 
-## Current Session (2026-06-09)
+## Current Session (2026-06-11) — DevOps: GitHub Pages + ECS HTTPS
 
-**本次完成:** 全部 Bug 修复 + ECS 远程端到端测试通过 + Windows IPv4 双栈修复。
+**无代码变更** — 本次会话做的是部署/运维。
 
-### 变更摘要
-1. **Bug #20–#23 全部修复验证:**
-   - #20 P2 输入映射 — 验证 swap 已实现，DirectionTest 8/8 通过
-   - #21 DirectionTest 编译错误 — `Rect`→`java.awt.Rectangle` 适配（已在 working tree）
-   - #22 GWT preloader 卡 0% — `gwt-assets/version.txt` + `FyrenGwtLauncher.getPreloaderCallback()` override + `gwt-compile.bat` 后处理
-   - #23 runLogin() MATCHED 竞态 — 已在 commit `1b6c321` 修复
-2. **`GameMain.main()` 强制 IPv4 栈** — `System.setProperty("java.net.preferIPv4Stack", "true")`。修复 Java 在 Windows Server 双栈环境下 `DatagramSocket(port)` 绑定 IPv6-mapped 地址导致外网 IPv4 客户端 UDP 包无法到达的问题。**这是 ECS 远程通信失败的根因。**
+### GitHub Pages 网站
+- `docs/index.html` — 产品页（中文，暗色主题，状态面板 + WebGL iframe + 合规下载按钮）
+- `docs/fyren/` — GWT WebGL 编译产物（59MB，5 browser permutations）
+- `docs/.nojekyll` — 防止 GitHub Pages 把文件当 Jekyll 处理
+- Commit `71d11be` — PAN_URL 改为 `/releases/latest`
+- ⚠️ **GitHub Pages 尚未启用** — 需去 Settings → Pages → master /docs → Save
 
-### ECS 远程 E2E 测试 ✅
-- ✅ UDP 通信正常（IPv4 修复后 onlinePlayers 实时更新 0→1→2）
-- ✅ MatchResponsePacket 序列化正确（无 BufferOverflowException）
-- ✅ 双客户端匹配流程：CONNECT → MATCHED → PLAYING
-- ✅ 竞态条件修复生效（MATCHED→PLAYING 无提前断开）
-- ✅ `/admin/deploy` 端点就绪（新 JAR 已含 DeployHandler，后续可热更新）
+### GitHub Release v0.3.0 修复
+- Release 描述：从空白修复为完整中文 changelog（P1-1 + P0 功能清单）
+- 标签：Pre-release → Latest
+- 下载链接：`/releases` → `/releases/latest`
+- ZIP 资产：重新上传为 Release Asset（不再 user-attachment 404）
+- Registry: `https://github.com/uquc/Fyren/releases/tag/v0.3.0`
 
-### ECS 运维笔记
-- **启动命令（必须含 IPv4 参数）:**
-  ```cmd
-  C:\Fyren\jre-minimal\bin\java -Djava.net.preferIPv4Stack=true -cp C:\Fyren\Fyren-1.0-SNAPSHOT.jar com.Fyren.GameMain server 9876 --daemon
-  ```
-- 首次部署需 RDP 传 `deploy.zip`，后续可用 `POST /admin/deploy`
-- 防火墙：`netsh advfirewall firewall add rule name="Fyren Game UDP 9876" dir=in action=allow protocol=UDP localport=9876`
+### ECS HTTPS (Caddy + Let's Encrypt)
+- Caddy v2.7.6 反向代理，`115.29.230.57.nip.io`
+- Let's Encrypt TLS-ALPN-01 挑战（因 IIS 占 80 端口）
+- Caddyfile路径：`C:\Fyren\caddy\Caddyfile`，已配置 `handle` 块保留下游路径
+- `auto_https disable_redirects` + `http_port 9999` 避免与 IIS 冲突
+- 安全组已开 TCP 443（`sg-bp10gn3btvuod4p9coge`）
+- 测试通过：`openssl s_client` → TLS 1.3 → `{"online":true,...}`
+- Caddy 前台运行中 — 需关闭窗口前切到计划任务 `Fyren-Caddy-HTTPS`
 
-### 已知限制
-- `activeMatches`/`totalMatches` 计数器未更新（待调查，不影响核心流程）
-- GWT 需重新编译生成 assets.txt
-- ECS Redis 未连接（内存模式，重启丢失用户数据）
+### ECS 启动命令（PowerShell引号注意）
+```powershell
+C:\Fyren\jre-minimal\bin\java "-Djava.net.preferIPv4Stack=true" -cp C:\Fyren\Fyren-1.0-SNAPSHOT.jar com.Fyren.GameMain server 9876 --daemon
+C:\Fyren\caddy\caddy.exe run --config C:\Fyren\caddy\Caddyfile
+```
 
-### 下次会话
-1. activeMatches/totalMatches 计数器修复
-2. GWT 重新编译验证
-3. 压力测试 / 稳定性测试
+### 待办
+- [ ] 启用 GitHub Pages（Settings → Pages → master /docs → Save）
+- [ ] Caddy 切后台（`Start-ScheduledTask -TaskName "Fyren-Caddy-HTTPS"`）
+- [ ] 更新 IIS `C:\inetpub\wwwroot\index.html` 为最新版（当前是旧版，STAT_URL 还是 http）
+- [ ] P1 主菜单 UI 实现
 
-Last commit: `93cd50e fix: force IPv4 stack to fix Windows dual-stack UDP receive issue`
+## Historical Session (2026-06-10) — P0 完成
 
-## Historical Session (2026-06-07)
+**P0 全部完成** (commit: `575c16d` feat: P0 — P2P UDP hole punch + audio system, 18 files, +447/-22)
 
-**本次完成:** GWT/WebGL 编译管线 + 游戏核心 GWT 兼容化 + ECS 部署包准备。
+### P0-1: 音效系统
+- `AudioManager.java` — 加载 6 个 WAV 文件（hit_light/hit_heavy/special/dash/block/ko）通过 `Gdx.audio.newSound()`
+- `Fighter.java` — `consumeAudioDashTrigger()` / `consumeAudioSpecialTrigger()` / `consumeAudioBlockedTrigger()` consume 模式标志
+- `CollisionSystem.java` — 格挡时设置 `audioBlockedTrigger`（在 `takeDamage()` 清除 `isBlocking` 之前）
+- `GameScreen.java` — `triggerAudio(p1, p2, dmg1, dmg2)`：命中/冲刺/特殊技/格挡/KO 五种音效触发
+- `FyrenGwtLauncher.java` — 同上，GWT 静默降级
+- `tools/SoundGenerator.java` — 程序化 WAV 生成器（sin 波/噪音/扫频），生成 6 个音效文件到 `assets/sounds/`
 
-### 变更摘要 (Phase 1: libGDX 网络集成)
-1. **FrameSyncManager Bug 修复** — `predictInputs()` 处理本地玩家输入缺失，新增 `copyInput()`
-2. **GameScreen 网络模式** — `updateNetwork()` → GameClient → FrameSyncManager，ReadWriteLock 线程安全
-3. **FyrenGame/FyrenLauncher/GameMain** — 网络客户端模式集成
+### P0-2: P2P UDP 打洞
+- `P2PHandshake.java` (NEW) — 异步 NAT 穿透：发送 P2P_PING ×10（20ms 间隔），等待 P2P_PONG，2s 超时→降级中继
+- `P2pPacket.java` (NEW) — 最小打洞包（仅 8 字节包头，无 payload）
+- `Packet.java` — 新增 `P2P_PING(8)` / `P2P_PONG(9)` 类型
+- `UdpClient.java` — `sendInputToOpponent()` P2P 路由（`p2pActive ? p2pAddress : serverAddress`），`sendRaw()` 握手机制
+- `GameClient.java` — 匹配成功后启动 P2PHandshake，处理 P2P_PING/P2P_PONG
 
-### 变更摘要 (Phase 2: GWT/WebGL 编译管线 ✅)
-1. **GWT 编译成功** → 输出 `target/gwt-out/fyren/*.js` (5 排列 ~6.8MB each)
-2. **FyrenGwt.gwt.xml** — 模块文件移到 `com.Fyren/` 级别，canonical source paths
-3. **FyrenGwtLauncher** — 自包含 WebGL Demo（不依赖 FyrenGame/GameScreen/GameClient）
-4. **GWT 兼容化改造:**
-   - 创建 `com.Fyren.game.Rect` — 替代 `java.awt.Rectangle`
-   - `FighterPreset.lineColor` — `java.awt.Color` → `int` (packed RGBA)
-   - `Fighter.java` — `getHitbox()/getAttackBox()` 返回 `Rect` 而非 `Rectangle`
-   - `CollisionSystem.java` — 使用 `Rect` 替代 `Rectangle`
-   - `HudRenderer.java` — `String.format()` → 手动 `pad2()` (GWT 不支持)
-   - `StickFigureRenderer.java` — 添加 `toColor(int)` 转换方法
-   - `GamePanel.java` — Rect → java.awt.Rectangle 适配
-5. **Chrome.gwt.xml 占位** — 创建于 `src/main/java/com/badlogic/gdx/backends/gwt/theme/chrome/`（后删除，因 gdx-backend-gwt-sources.jar 已下载）
-6. **gwt-compile.bat/sh** — 完整 classpath（gwt-dev + transitive deps: asm, colt, gson, tapestry, ant, jsr305, validation）
-7. **CLI 命令:**
-   ```bash
-   mvn compile -q
-   mvn dependency:sources -DincludeArtifactIds=gdx-backend-gwt,gdx  # 首次
-   ./gwt-compile.sh   # or gwt-compile.bat
-   ```
-8. **GWT classpath 依赖链:** gwt-dev, gwt-user, gdx + sources, gdx-backend-gwt + sources, jsinterop-annotations + sources, validation-api + sources, ant + launcher, colt, asm + util + commons, gson, jsr305, tapestry
+### 前置修复 (2026-06-10)
+- `GameServer.java` — activeMatches/totalMatches 计数器修复 + ResultPacket 去重
+- `FrameSyncManager.java` — 游戏结束检测 + `onGameOver` 回调
+- `GameClient.java` — game-over 回调：world winnerId → player IDs → reportResult()
+- `HttpStatusServer.java` — incrementActiveMatches()/decrementActiveMatches()
 
-### ECS 部署状态
-- `target/deploy.zip` (57MB, jre-minimal + fat JAR) ✅
-- `deploy-ecs.ps1` ✅  
+### 集成测试验证
+| 功能 | 结果 |
+|------|------|
+| 音效加载 (6 WAV) | ✅ |
+| 音效触发 (hit/dash/special/block/KO) | ✅ |
+| P2P 握手 (localhost) | ✅ 双方 "打洞成功! 直连" |
+| 计数器 (online/active/total matches) | ✅ 0→2→0, 0→1→0, 0→1 |
+| GWT 编译 | ✅ 87.6s, 5 permutations |
+| 所有单元测试 | ✅ BUILD SUCCESS |
 
-Last commit: `ae70368 fix: NPE in Packet.deserialize crashes UDP receive thread + add catch-all exception handler`
+### 会话语录
+```
+575c16d feat: P0 — P2P UDP hole punch + audio system
+de17cf1 docs: P2P UDP hole punch + audio system design spec
+7ede323 fix: activeMatches/totalMatches counters + game-over detection + ResultPacket reporting
+```
+
+## P1 待办（优先级顺序）
+
+1. **主菜单/UI** — 标题画面→选角色→匹配→结算→循环（scene2d.ui 或自定义）
+2. **背景/视觉美术资源** — 至少一个格斗场景背景
+3. **训练模式** — 帧数据显示 + 无对手自由练习
+4. **GWT WebSocket 网络对战** — 浏览器端联机
+
+**ECS 部署提醒：** 新 JAR 需部署到 `115.29.230.57` 以启用 P2P 和音效。启动命令：
+```cmd
+C:\Fyren\jre-minimal\bin\java -Djava.net.preferIPv4Stack=true -cp C:\Fyren\Fyren-1.0-SNAPSHOT.jar com.Fyren.GameMain server 9876 --daemon
+```
+
+## Historical Session (2026-06-09) — Bug 修复 + ECS E2E
+
+全部 Bug (#14-#23) 修复验证 + ECS 远程端到端测试通过 + Windows IPv4 双栈修复。
+- `GameMain.main()` 强制 `-Djava.net.preferIPv4Stack=true`（ECS UDP 通信失败的根因）
+- `/admin/deploy` 热更新端点就绪
+- ECS 运维：RDP 传 deploy.zip → `netsh advfirewall` 开 UDP 9876
+
+Last commits: `93cd50e` IPv4 修复, `ab8e008` 会话文档化
+
+## Historical Session (2026-06-07) — GWT/WebGL 编译管线
+
+GWT 编译成功 + 游戏核心 GWT 兼容化（Rect 替代 Rectangle, int RGBA 替代 Color, String.format 替代）。
+ECS 部署包 `target/deploy.zip` (57MB, jre-minimal + fat JAR)。
+
+Last commit: `ae70368 fix: NPE in Packet.deserialize crashes UDP receive thread`
