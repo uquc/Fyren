@@ -43,7 +43,7 @@ public class GameClient {
 
     // 本地玩家
     private final int localPlayerId;
-    private final FighterPreset preset;
+    private FighterPreset preset;
     private final PlayerRating playerRating;
 
     // 核心组件
@@ -55,6 +55,7 @@ public class GameClient {
     // 状态
     private volatile ClientState state = ClientState.IDLE;
     private volatile int opponentId = -1;
+    private volatile int opponentRating = 1000;
     private volatile int opponentPresetOrdinal = 1; // 默认TAKESHI
     private volatile boolean opponentReady = false;
     private volatile java.net.InetSocketAddress opponentAddress = null; // P2P 握手用
@@ -333,6 +334,24 @@ public class GameClient {
         System.out.println("[GameClient] 已断开连接");
     }
 
+    /**
+     * 重置客户端状态为 CONNECTED（用于再战）。
+     * FrameSyncManager 已在对局结束时停止，此处清理引用。
+     */
+    public void resetToIdle() {
+        this.opponentId = -1;
+        this.opponentRating = 1000;
+        this.opponentPresetOrdinal = 1;
+        this.opponentReady = false;
+        this.opponentAddress = null;
+        this.frameSyncManager = null;
+        this.frameCounter.set(0);
+        this.sequenceCounter = 0;
+        this.currentLocalInput = null;
+        setState(ClientState.CONNECTED);
+        System.out.println("[GameClient] 已重置为 CONNECTED，可重新匹配");
+    }
+
     // ========== 输入处理 ==========
 
     /**
@@ -460,6 +479,7 @@ public class GameClient {
                     return;
                 }
                 this.opponentId = packet.opponentId;
+                this.opponentRating = packet.opponentRating;
                 this.opponentPresetOrdinal = packet.opponentPresetOrdinal;
                 this.opponentReady = true;
                 this.opponentAddress = new java.net.InetSocketAddress(packet.opponentAddress, packet.opponentPort);
@@ -530,7 +550,10 @@ public class GameClient {
     public ClientState getState() { return state; }
     public int getLocalPlayerId() { return localPlayerId; }
     public int getOpponentId() { return opponentId; }
+    public int getOpponentRating() { return opponentRating; }
+    public int getOpponentPresetOrdinal() { return opponentPresetOrdinal; }
     public FighterPreset getPreset() { return preset; }
+    public void setPreset(FighterPreset p) { this.preset = p; }
     public PlayerRating getPlayerRating() { return playerRating; }
     public GameWorld getGameWorld() { return gameWorld; }
 
