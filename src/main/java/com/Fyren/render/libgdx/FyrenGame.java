@@ -129,11 +129,16 @@ public class FyrenGame extends ApplicationAdapter {
     @Override
     public void dispose() {
         if (currentScreen != null) currentScreen.dispose();
+        // GameScreen disposes its own injected renderers (spriteRenderer, hudRenderer, etc.)
         if (gameScreen != null) gameScreen.dispose();
-        if (spriteRenderer != null) spriteRenderer.dispose();
-        if (hudRenderer != null) hudRenderer.dispose();
-        if (particleEffects != null) particleEffects.dispose();
-        if (motionTrailEffect != null) motionTrailEffect.dispose();
+        // Only dispose fight renderers if GameScreen never took ownership
+        if (gameScreen == null) {
+            if (spriteRenderer != null) spriteRenderer.dispose();
+            if (hudRenderer != null) hudRenderer.dispose();
+            if (particleEffects != null) particleEffects.dispose();
+            if (motionTrailEffect != null) motionTrailEffect.dispose();
+        }
+        // Menu rendering components (not shared with GameScreen)
         if (shapes != null) shapes.dispose();
         if (batch != null) batch.dispose();
         if (font != null) font.dispose();
