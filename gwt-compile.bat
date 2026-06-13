@@ -68,11 +68,11 @@ if %ERRORLEVEL% EQU 0 (
         echo t:version.txt:version.txt:10:text/plain:1
         echo t:lsans-15.fnt:lsans-15.fnt:17711:text/plain:1
         echo i:lsans-15.png:lsans-15.png:10270:image/png:1
-    ) > target\gwt-out\assets\assets.txt
-    REM Copy asset files to assets output directory
-    if exist gwt-assets\version.txt copy /y gwt-assets\version.txt target\gwt-out\assets\version.txt >nul
-    if exist gwt-assets\lsans-15.fnt copy /y gwt-assets\lsans-15.fnt target\gwt-out\assets\lsans-15.fnt >nul
-    if exist gwt-assets\lsans-15.png copy /y gwt-assets\lsans-15.png target\gwt-out\assets\lsans-15.png >nul
+    ) > target\gwt-out\fyren\assets.txt
+    REM Copy asset files to module output directory (same as host page)
+    if exist gwt-assets\version.txt copy /y gwt-assets\version.txt target\gwt-out\fyren\version.txt >nul
+    if exist gwt-assets\lsans-15.fnt copy /y gwt-assets\lsans-15.fnt target\gwt-out\fyren\lsans-15.fnt >nul
+    if exist gwt-assets\lsans-15.png copy /y gwt-assets\lsans-15.png target\gwt-out\fyren\lsans-15.png >nul
     echo.
     echo === GWT Compilation Complete ===
     echo Output: target\gwt-out\
