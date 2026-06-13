@@ -34,6 +34,39 @@
         <include name="InputBuffer.java"/>
     </source>
 
+    <!-- GWT WebSocket 网络层 -->
+    <source path="network/gwt">
+        <include name="*.java"/>
+    </source>
+
+    <!-- 网络包（Packet 序列化 — 纯字节操作，GWT 兼容） -->
+    <source path="network">
+        <include name="Packet.java"/>
+        <include name="InputPacket.java"/>
+        <include name="StatePacket.java"/>
+        <include name="HeartbeatPacket.java"/>
+        <include name="MatchRequestPacket.java"/>
+        <include name="MatchResponsePacket.java"/>
+        <include name="AckPacket.java"/>
+        <include name="ResultPacket.java"/>
+        <include name="P2pPacket.java"/>
+    </source>
+
+    <!-- GWT 帧同步管理器 -->
+    <source path="sync">
+        <include name="GwtFrameSyncManager.java"/>
+    </source>
+
+    <!-- 输入编解码（纯字节操作） -->
+    <source path="util">
+        <include name="InputCodec.java"/>
+    </source>
+
+    <!-- MMR 评分（纯数学计算） -->
+    <source path="match">
+        <include name="PlayerRating.java"/>
+    </source>
+
     <!-- WebGL Demo 为本地双人对战模式，不依赖网络 -->
     <entry-point class="com.Fyren.render.libgdx.gwt.FyrenGwtLauncher"/>
 </module>
