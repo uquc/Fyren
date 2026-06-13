@@ -1,0 +1,27 @@
+====================================
+  Fyren 格斗游戏客户端
+  服务器: localhost:9876
+  玩家ID: 20002
+  角色: 武
+====================================
+[状态] CONNECTING
+[状态] CONNECTED
+[GameClient] 已连接到服务器 localhost:9876
+[状态] MATCHING
+[GameClient] 已发送匹配请求 (rating=1500)
+[GameClient] 匹配等待中...
+[GameClient] 匹配等待中...
+[GameClient] 匹配等待中...
+[状态] MATCHED
+[GameClient] 匹配成功! 对手: player20001 (rating=1500) preset=影 @ 127.0.0.1:61072
+>>> 找到对手! 对手ID=20001, MMR=1500
+[状态] PLAYING
+>>> 游戏开始! 可以开始操作
+    操作说明: W/S/A/D 移动, J 拳, K 脚, U 特殊技
+[GameClient] 游戏开始! 对手ID=20001
+[状态] GAME_OVER
+>>> 你赢了!
+[GameClient] 比赛结果已上报: winner=20002
+[状态] DISCONNECTED
+[GameClient] 已断开连接
+[GameClient] 已断开连接

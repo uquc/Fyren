@@ -1,0 +1,97 @@
+<h2>角色选择画面 — 卡片左右切换式</h2>
+<p class="subtitle">3 角色横向排列，支持 ← → 切换高亮，ENTER 确认</p>
+
+<div class="mockup">
+  <div class="mockup-header">960 × 540 — CHARACTER SELECT</div>
+  <div class="mockup-body" style="background:#0a0a12; padding:24px 20px; min-height:360px; font-family:monospace;">
+
+    <!-- Header -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <div style="font-size:10px; color:#555; letter-spacing:6px;">SELECT YOUR FIGHTER</div>
+      <div style="font-size:10px; color:#555;">← → Navigate &nbsp; ENTER Confirm &nbsp; ESC Back</div>
+    </div>
+
+    <!-- Character cards row -->
+    <div style="display:flex; gap:12px; justify-content:center; align-items:flex-start;">
+
+      <!-- Card 1: GOU (left, dimmed) -->
+      <div style="width:150px; background:#111; border:1px solid #222; padding:12px; opacity:0.5; transform:scale(0.9);">
+        <div style="height:100px; background:#0d1117; display:flex; align-items:center; justify-content:center; margin-bottom:8px; position:relative;">
+          <span style="color:#2ea043; font-size:10px;">GOU 剪影</span>
+        </div>
+        <div style="font-size:11px; color:#888; text-align:center;">刚 GOU</div>
+        <div style="font-size:9px; color:#555; text-align:center; margin-top:2px;">Vanguard · 受击充能</div>
+      </div>
+
+      <!-- Card 2: TAKESHI (center, selected) -->
+      <div style="width:190px; background:#1a1a2e; border:2px solid #e63946; padding:16px; transform:scale(1.05); box-shadow:0 0 20px rgba(230,57,70,0.15);">
+        <div style="height:120px; background:#161b22; display:flex; align-items:center; justify-content:center; margin-bottom:10px; position:relative;">
+          <span style="color:#f0883e; font-size:12px;">武 TAKESHI 剪影</span>
+          <div style="position:absolute; top:4px; right:4px; color:#e63946; font-size:9px;">◉ SELECTED</div>
+        </div>
+        <div style="font-size:14px; color:#f1faee; text-align:center; font-weight:bold;">武 TAKESHI</div>
+        <div style="font-size:10px; color:#f0883e; text-align:center; margin-top:2px;">Striker · 伤害充能</div>
+        <div style="margin-top:10px; padding-top:8px; border-top:1px solid #333;">
+          <div style="display:flex; justify-content:space-between; font-size:9px;">
+            <span style="color:#888;">HP</span><span style="color:#4ecdc4;">████████░░ 800</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:9px;">
+            <span style="color:#888;">SPD</span><span style="color:#ffe66d;">██████░░░░ 6.0</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:9px;">
+            <span style="color:#888;">DMG</span><span style="color:#ff6b6b;">████████░░ 75</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: KAGE (right, dimmed) -->
+      <div style="width:150px; background:#111; border:1px solid #222; padding:12px; opacity:0.5; transform:scale(0.9);">
+        <div style="height:100px; background:#0d1117; display:flex; align-items:center; justify-content:center; margin-bottom:8px;">
+          <span style="color:#6e8efb; font-size:10px;">KAGE 剪影</span>
+        </div>
+        <div style="font-size:11px; color:#888; text-align:center;">影 KAGE</div>
+        <div style="font-size:9px; color:#555; text-align:center; margin-top:2px;">Assassin · CD恢复</div>
+      </div>
+
+    </div>
+
+    <!-- Navigation arrows -->
+    <div style="display:flex; justify-content:space-between; margin-top:12px; padding:0 80px;">
+      <div style="color:#555; font-size:20px;">◀</div>
+      <div style="display:flex; gap:6px;">
+        <div style="width:8px; height:8px; border-radius:50%; background:#333;"></div>
+        <div style="width:8px; height:8px; border-radius:50%; background:#e63946;"></div>
+        <div style="width:8px; height:8px; border-radius:50%; background:#333;"></div>
+      </div>
+      <div style="color:#e63946; font-size:20px;">▶</div>
+    </div>
+
+  </div>
+</div>
+
+<div style="margin-top:16px;">
+  <h3>交互细节</h3>
+  <div class="mockup">
+    <div class="mockup-header">卡片切换动效示意</div>
+    <div class="mockup-body" style="background:#0a0a12; padding:16px; font-family:monospace; font-size:11px; color:#aaa;">
+      <table style="width:100%; border-collapse:collapse;">
+        <tr style="border-bottom:1px solid #1a1a2e;">
+          <td style="padding:6px; color:#888;">← →</td>
+          <td style="padding:6px;">左右移动高亮卡片，两侧卡片缩小 + 半透明（如上图）</td>
+        </tr>
+        <tr style="border-bottom:1px solid #1a1a2e;">
+          <td style="padding:6px; color:#888;">过渡</td>
+          <td style="padding:6px;">卡片平移滑动 200ms，选中卡片缩放上弹</td>
+        </tr>
+        <tr style="border-bottom:1px solid #1a1a2e;">
+          <td style="padding:6px; color:#888;">ENTER</td>
+          <td style="padding:6px;">确认选择 → 进入匹配画面</td>
+        </tr>
+        <tr>
+          <td style="padding:6px; color:#888;">ESC</td>
+          <td style="padding:6px;">返回标题画面</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>

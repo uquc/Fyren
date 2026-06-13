@@ -1,0 +1,138 @@
+<h2>剩余画面：匹配 → VS 对阵 → 结算</h2>
+<p class="subtitle">三个画面的设计方案</p>
+
+<!-- ====== MATCHING SCREEN ====== -->
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header">画面 1：MATCHING — 匹配等待中</div>
+  <div class="mockup-body" style="background:#0a0a12; padding:30px 20px; min-height:260px; font-family:monospace;">
+
+    <div style="display:flex; gap:40px;">
+
+      <!-- Left: info area -->
+      <div style="flex:1; padding-top:20px;">
+        <div style="font-size:10px; color:#555; letter-spacing:6px; margin-bottom:30px;">MATCHMAKING</div>
+        <div style="font-size:22px; color:#f1faee; font-weight:bold; margin-bottom:8px;">SEARCHING FOR</div>
+        <div style="font-size:22px; color:#f1faee; font-weight:bold; margin-bottom:8px;">OPPONENT<span style="color:#e63946; animation:pulse;">...</span></div>
+
+        <div style="margin-top:20px; display:flex; align-items:center; gap:8px;">
+          <div style="width:6px; height:6px; border-radius:50%; background:#e63946;"></div>
+          <div style="font-size:11px; color:#888;">ELO Range: 950 – 1150</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+          <div style="width:6px; height:6px; border-radius:50%; background:#333;"></div>
+          <div style="font-size:11px; color:#555;">Time elapsed: 12s</div>
+        </div>
+
+        <div style="margin-top:30px; font-size:10px; color:#555;">ESC — Cancel Matchmaking</div>
+      </div>
+
+      <!-- Right: animation area -->
+      <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+        <div style="width:80px; height:80px; border:2px solid #333; border-top-color:#e63946; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+          <span style="font-size:18px; color:#e63946; font-weight:bold;">VS</span>
+        </div>
+        <div style="margin-top:16px; font-size:9px; color:#444;">Searching network...</div>
+
+        <!-- Animated dots -->
+        <div style="display:flex; gap:4px; margin-top:8px;">
+          <div style="width:4px; height:4px; border-radius:50%; background:#e63946;"></div>
+          <div style="width:4px; height:4px; border-radius:50%; background:#333;"></div>
+          <div style="width:4px; height:4px; border-radius:50%; background:#333;"></div>
+          <div style="width:4px; height:4px; border-radius:50%; background:#333;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== VS SCREEN ====== -->
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header">画面 2：VS SPLASH — 对阵展示（2.5s 自动过渡到对战）</div>
+  <div class="mockup-body" style="background:#0a0a12; padding:30px 20px; min-height:240px; font-family:monospace;">
+
+    <div style="display:flex; align-items:center; justify-content:center; gap:30px;">
+      <!-- P1 -->
+      <div style="text-align:center;">
+        <div style="width:80px; height:110px; background:#161b22; border:1px solid #333; display:flex; align-items:center; justify-content:center; margin-bottom:8px;">
+          <span style="color:#f0883e; font-size:10px;">武 TAKESHI</span>
+        </div>
+        <div style="font-size:12px; color:#f1faee; font-weight:bold;">YOU</div>
+        <div style="font-size:9px; color:#888;">MMR 1050</div>
+      </div>
+
+      <!-- VS -->
+      <div style="text-align:center;">
+        <div style="font-size:48px; font-weight:900; color:#e63946; letter-spacing:4px; text-shadow:0 0 30px rgba(230,57,70,0.3);">VS</div>
+        <div style="font-size:9px; color:#555;">READY...</div>
+      </div>
+
+      <!-- P2 -->
+      <div style="text-align:center;">
+        <div style="width:80px; height:110px; background:#161b22; border:1px solid #6e8efb; display:flex; align-items:center; justify-content:center; margin-bottom:8px;">
+          <span style="color:#6e8efb; font-size:10px;">影 KAGE</span>
+        </div>
+        <div style="font-size:12px; color:#f1faee; font-weight:bold;">OPPONENT</div>
+        <div style="font-size:9px; color:#888;">MMR 1092</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== RESULT SCREEN ====== -->
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header">画面 3：RESULT — 结算画面</div>
+  <div class="mockup-body" style="background:#0a0a12; padding:30px 20px; min-height:240px; font-family:monospace;">
+
+    <div style="text-align:center;">
+      <div style="font-size:42px; font-weight:900; color:#f1faee; letter-spacing:4px; margin-bottom:4px;">YOU WIN</div>
+      <div style="font-size:11px; color:#888; letter-spacing:4px; margin-bottom:24px;">GREAT FIGHT</div>
+
+      <!-- Stats bar -->
+      <div style="display:flex; justify-content:center; gap:20px; margin-bottom:28px;">
+        <div style="text-align:center;">
+          <div style="font-size:9px; color:#555;">YOUR MMR</div>
+          <div style="font-size:14px; color:#4ecdc4; font-weight:bold;">1050 <span style="color:#2ea043; font-size:10px;">+18</span></div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:9px; color:#555;">HEALTH LEFT</div>
+          <div style="font-size:14px; color:#f1faee; font-weight:bold;">320 / 800</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:9px; color:#555;">TIME</div>
+          <div style="font-size:14px; color:#f1faee; font-weight:bold;">43s</div>
+        </div>
+      </div>
+
+      <!-- Menu options -->
+      <div style="display:inline-block; text-align:left;">
+        <div style="color:#f1faee; font-size:15px; padding:6px 0; border-bottom:1px solid #e63946; margin-bottom:4px;">▶ REMATCH</div>
+        <div style="color:#888; font-size:14px; padding:4px 0; margin-bottom:2px;">  RETURN TO MENU</div>
+      </div>
+
+      <div style="margin-top:20px; font-size:9px; color:#555;">Auto-return to menu in 30s...</div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:16px;">
+  <h3>附：DEMO 模式流程</h3>
+  <div class="mockup">
+    <div class="mockup-header">DEMO 模式的简化流程（无网络，本地双人）</div>
+    <div class="mockup-body" style="background:#0a0a12; padding:16px; text-align:center;">
+      <div style="display:flex; align-items:center; justify-content:center; gap:8px; font-family:monospace; font-size:11px;">
+        <div style="background:#1a1a2e; border:1px solid #e63946; padding:10px 14px; color:#f1faee;">TITLE</div>
+        <span style="color:#555;">→</span>
+        <div style="background:#1a1a2e; border:1px solid #333; padding:10px 14px; color:#ccc;">P1 选角色</div>
+        <span style="color:#555;">→</span>
+        <div style="background:#1a1a2e; border:1px solid #333; padding:10px 14px; color:#ccc;">P2 选角色</div>
+        <span style="color:#555;">→</span>
+        <div style="background:#1a1a2e; border:1px solid #333; padding:10px 14px; color:#ccc;">FIGHT</div>
+        <span style="color:#555;">→</span>
+        <div style="background:#1a1a2e; border:1px solid #333; padding:10px 14px; color:#ccc;">RESULT</div>
+        <span style="color:#555;">→</span>
+        <div style="background:#1a1a2e; border:1px solid #e63946; padding:10px 14px; color:#f1faee;">↻ LOOP</div>
+      </div>
+      <div style="margin-top:12px; font-size:10px; color:#555;">跳过匹配和 VS 画面，直接进入对战</div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,66 @@
+<h2>Fyren 主菜单 — 标题画面概念</h2>
+<p class="subtitle">格斗游戏风格，暗色调，三选项菜单</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">方案 A：居中对称式（经典格斗游戏）</div>
+    <div class="mockup-body" style="background:#0a0a12; padding:30px 20px; text-align:center; min-height:350px; font-family:monospace;">
+      <div style="color:#333; font-size:10px; margin-bottom:20px;">960 × 540 — Game Window</div>
+      <div style="font-size:48px; font-weight:900; color:#e63946; letter-spacing:6px; margin-bottom:8px;">風 蓮</div>
+      <div style="font-size:14px; color:#666; letter-spacing:10px; margin-bottom:40px;">F Y R E N</div>
+      <div style="width:200px; margin:0 auto; text-align:left;">
+        <div style="color:#f1faee; font-size:16px; padding:8px 0; border-bottom:1px solid #e63946; margin-bottom:6px;">▶ NETWORK MATCH</div>
+        <div style="color:#888; font-size:14px; padding:6px 0; margin-bottom:4px;">  TRAINING MODE</div>
+        <div style="color:#888; font-size:14px; padding:6px 0;">  EXIT</div>
+      </div>
+      <div style="color:#444; font-size:10px; margin-top:40px;">v0.1.0 — Press ENTER to select</div>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">方案 B：左对齐非对称式（现代风格）</div>
+    <div class="mockup-body" style="background:#0a0a12; padding:30px 20px; min-height:350px; font-family:monospace; position:relative;">
+      <div style="color:#333; font-size:10px; margin-bottom:20px;">960 × 540 — Game Window</div>
+      <div style="display:flex; gap:40px;">
+        <div style="flex:1; padding-top:20px;">
+          <div style="font-size:42px; font-weight:900; color:#e63946; letter-spacing:4px; margin-bottom:4px;">風 蓮</div>
+          <div style="font-size:12px; color:#555; letter-spacing:8px; margin-bottom:50px;">F Y R E N</div>
+          <div style="margin-bottom:8px;">
+            <div style="color:#f1faee; font-size:18px; padding:8px 0; position:relative;">
+              <span style="color:#e63946; position:absolute; left:-20px;">▸</span> NETWORK MATCH
+            </div>
+          </div>
+          <div style="color:#777; font-size:15px; padding:6px 0; margin-bottom:4px;">TRAINING MODE</div>
+          <div style="color:#777; font-size:15px; padding:6px 0;">EXIT</div>
+        </div>
+        <div style="flex:1; display:flex; align-items:center; justify-content:center;">
+          <div style="width:120px; height:180px; border:1px solid #333; display:flex; align-items:center; justify-content:center; color:#444;">
+            <span style="font-size:11px;">角色剪影<br/>预览区</span>
+          </div>
+        </div>
+      </div>
+      <div style="color:#444; font-size:10px; margin-top:30px;">v0.1.0 — ↑↓ Navigate · ENTER Select</div>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:24px;">整体 Screen 流转</h3>
+<div class="mockup">
+  <div class="mockup-header">Screen Flow: TITLE → SELECT → MATCHING → VS → FIGHT → RESULT → TITLE</div>
+  <div class="mockup-body" style="background:#0a0a12; padding:20px; text-align:center;">
+    <div style="display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap; font-family:monospace; font-size:11px;">
+      <div style="background:#1a1a2e; border:1px solid #e63946; padding:10px 14px; color:#f1faee;">TITLE<br/><span style="color:#e63946; font-size:9px;">标题画面</span></div>
+      <span style="color:#555;">→</span>
+      <div style="background:#1a1a2e; border:1px solid #333; padding:10px 14px; color:#ccc;">CHARACTER<br/>SELECT<br/><span style="color:#888; font-size:9px;">选角色</span></div>
+      <span style="color:#555;">→</span>
+      <div style="background:#1a1a2e; border:1px solid #333; padding:10px 14px; color:#ccc;">MATCHING<br/><span style="color:#888; font-size:9px;">匹配中</span></div>
+      <span style="color:#555;">→</span>
+      <div style="background:#1a1a2e; border:1px solid #e63946; padding:10px 14px; color:#f1faee;">VS<br/><span style="color:#e63946; font-size:9px;">对阵展示</span></div>
+      <span style="color:#555;">→</span>
+      <div style="background:#1a1a2e; border:1px solid #333; padding:10px 14px; color:#ccc;">FIGHT<br/><span style="color:#888; font-size:9px;">GameScreen</span></div>
+      <span style="color:#555;">→</span>
+      <div style="background:#1a1a2e; border:1px solid #333; padding:10px 14px; color:#ccc;">RESULT<br/><span style="color:#888; font-size:9px;">结算</span></div>
+      <span style="color:#555;">→</span>
+      <div style="background:#1a1a2e; border:1px solid #e63946; padding:10px 14px; color:#f1faee; font-size:9px;">↻ LOOP</div>
+    </div>
+  </div>
+</div>
