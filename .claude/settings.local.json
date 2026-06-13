@@ -64,7 +64,8 @@
       "Bash(taskkill //f //im chrome.exe)",
       "Bash(mkdir -p \"C:/Users/aa/chrome-debug-profile\")",
       "Bash(start chrome *)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(dir /s /b src\\\\test\\\\java\\\\*.java)"
     ]
   }
 }

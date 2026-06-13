@@ -121,9 +121,10 @@ public class PlayerRating {
             this.lossStreak = 0;
         }
 
-        System.out.printf("[MMR] 玩家%d: %d → %d (%+d) | 对手%d: %d | K=%.1f | 胜率期望=%.2f%%\n",
-                playerId, oldRating, rating, ratingChange,
-                opponent.playerId, opponent.rating, kFactor, expected * 100);
+        System.out.println("[MMR] 玩家" + playerId + ": " + oldRating + " → " + rating
+                + " (" + (ratingChange >= 0 ? "+" : "") + ratingChange + ") | 对手"
+                + opponent.playerId + ": " + opponent.rating + " | K=" + kFactor
+                + " | 胜率期望=" + Math.round(expected * 10000) / 100.0 + "%");
     }
 
     /**
@@ -197,7 +198,8 @@ public class PlayerRating {
 
     @Override
     public String toString() {
-        return String.format("PlayerRating[id=%d, rating=%d, rank=%s, W/L/D=%d/%d/%d, winRate=%.1f%%]",
-                playerId, rating, getRank().displayName, wins, losses, draws, getWinRate());
+        return "PlayerRating[id=" + playerId + ", rating=" + rating + ", rank="
+                + getRank().displayName + ", W/L/D=" + wins + "/" + losses + "/" + draws
+                + ", winRate=" + Math.round(getWinRate() * 10) / 10.0 + "%]";
     }
 }

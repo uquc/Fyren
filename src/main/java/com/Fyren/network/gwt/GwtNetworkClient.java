@@ -230,9 +230,9 @@ public class GwtNetworkClient {
                 this.opponentReady = true;
                 setState(ClientState.MATCHED);
 
-                System.out.printf("[GwtClient] 匹配成功! 对手: player%d (rating=%d) preset=%s\n",
-                        packet.opponentId, packet.opponentRating,
-                        FighterPreset.values()[packet.opponentPresetOrdinal].getDisplayName());
+                System.out.println("[GwtClient] 匹配成功! 对手: player" + packet.opponentId
+                        + " (rating=" + packet.opponentRating + ") preset="
+                        + FighterPreset.values()[packet.opponentPresetOrdinal].getDisplayName());
 
                 if (callback != null) {
                     callback.onMatchFound(packet.opponentId, packet.opponentRating);
@@ -256,7 +256,7 @@ public class GwtNetworkClient {
         sendPacket(result);
         setState(ClientState.GAME_OVER);
         if (callback != null) callback.onGameOver(winnerId);
-        System.out.printf("[GwtClient] 比赛结果已上报: winner=%d\n", winnerId);
+        System.out.println("[GwtClient] 比赛结果已上报: winner=" + winnerId);
     }
 
     // ========== Utils ==========
