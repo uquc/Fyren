@@ -36,6 +36,20 @@ public class MatchManager {
     public void setOnMatchCreated(Runnable callback) { this.onMatchCreated = callback; }
     public void setOnMatchEnded(Runnable callback) { this.onMatchEnded = callback; }
 
+    // 匹配响应发送器 — 由 GameServer 注入，支持多传输层
+    private MatchResponseSender matchResponseSender;
+    // 匹配双方回调 — GameServer 用于跨协议建立会话
+    private java.util.function.BiConsumer<Integer, Integer> onMatchFoundCallback;
+
+    @FunctionalInterface
+    public interface MatchResponseSender {
+        void sendMatchResponse(int playerId, MatchResponsePacket response,
+                               String opponentAddress, int opponentPort);
+    }
+
+    public void setMatchResponseSender(MatchResponseSender sender) { this.matchResponseSender = sender; }
+    public void setOnMatchFoundCallback(java.util.function.BiConsumer<Integer, Integer> cb) { this.onMatchFoundCallback = cb; }
+
     public MatchManager(UdpServer server) {
         this.server = server;
         this.matchmaker = new Matchmaker();
@@ -118,35 +132,34 @@ public class MatchManager {
         int p1Preset = playerPresets.getOrDefault(p1.playerId, 1);
         int p2Preset = playerPresets.getOrDefault(p2.playerId, 1);
 
-        // 通知玩家1（告知对手P2的信息，包括P2的preset）
-        MatchResponsePacket resp1 = new MatchResponsePacket(
-                nextSequence(),
-                MatchResponsePacket.STATUS_MATCHED,
-                p2.playerId,
-                p2.rating,
-                session2.address != null ? session2.address.getHostString() : "",
-                session2.address != null ? session2.address.getPort() : 0,
-                p2Preset
-        );
-        server.sendReliableTo(resp1, session1.address);
+        String addr1 = session1.address != null ? session1.address.getHostString() : "";
+        int port1 = session1.address != null ? session1.address.getPort() : 0;
+        String addr2 = session2.address != null ? session2.address.getHostString() : "";
+        int port2 = session2.address != null ? session2.address.getPort() : 0;
 
-        // 通知玩家2（告知对手P1的信息，包括P1的preset）
+        MatchResponsePacket resp1 = new MatchResponsePacket(
+                nextSequence(), MatchResponsePacket.STATUS_MATCHED,
+                p2.playerId, p2.rating, addr2, port2, p2Preset);
         MatchResponsePacket resp2 = new MatchResponsePacket(
-                nextSequence(),
-                MatchResponsePacket.STATUS_MATCHED,
-                p1.playerId,
-                p1.rating,
-                session1.address != null ? session1.address.getHostString() : "",
-                session1.address != null ? session1.address.getPort() : 0,
-                p1Preset
-        );
-        server.sendReliableTo(resp2, session2.address);
+                nextSequence(), MatchResponsePacket.STATUS_MATCHED,
+                p1.playerId, p1.rating, addr1, port1, p1Preset);
+
+        if (matchResponseSender != null) {
+            matchResponseSender.sendMatchResponse(p1.playerId, resp1, addr2, port2);
+            matchResponseSender.sendMatchResponse(p2.playerId, resp2, addr1, port1);
+        } else {
+            // 向后兼容：直接用 UDP
+            server.sendReliableTo(resp1, session1.address);
+            server.sendReliableTo(resp2, session2.address);
+        }
 
         System.out.printf("[MatchManager] 已通知双方匹配结果: player%d ↔ player%d\n",
                 p1.playerId, p2.playerId);
 
-        // 通知匹配创建（用于活跃匹配计数）
+        // 通知匹配创建
         if (onMatchCreated != null) onMatchCreated.run();
+        // 通知匹配双方ID（GameServer 用于跨协议会话建立）
+        if (onMatchFoundCallback != null) onMatchFoundCallback.accept(p1.playerId, p2.playerId);
     }
 
     /**
