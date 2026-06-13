@@ -8,6 +8,7 @@ import com.badlogic.gdx.backends.gwt.preloader.Preloader.PreloaderCallback;
 import com.badlogic.gdx.backends.gwt.preloader.Preloader.PreloaderState;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.Fyren.game.Fighter;
@@ -136,7 +137,7 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
         cameraController = new CameraController(960, 540);
 
         spriteRenderer = new SpriteRenderer();
-        hudRenderer = new HudRenderer();
+        hudRenderer = new HudRenderer(loadGwtFont());
         hitEffects = new HitEffects();
         particleEffects = new ParticleEffects();
         motionTrailEffect = new MotionTrailEffect();
@@ -180,7 +181,7 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
         inputHandler = new GdxInputHandler();
         cameraController = new CameraController(960, 540);
         spriteRenderer = new SpriteRenderer();
-        hudRenderer = new HudRenderer();
+        hudRenderer = new HudRenderer(loadGwtFont());
         hitEffects = new HitEffects();
         particleEffects = new ParticleEffects();
         motionTrailEffect = new MotionTrailEffect();
@@ -383,6 +384,14 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
         bgShapes.setColor(0.2f, 0.2f, 0.22f, 0.4f);
         bgShapes.line(480, 50, 480, 540);
         bgShapes.end();
+    }
+
+    /** GWT-compatible font loading — uses preloaded internal assets (Gdx.files.internal). */
+    private static BitmapFont loadGwtFont() {
+        return new BitmapFont(
+                Gdx.files.internal("lsans-15.fnt"),
+                Gdx.files.internal("lsans-15.png"),
+                false);
     }
 
     private static native String getUrlParam(String name) /*-{

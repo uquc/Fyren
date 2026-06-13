@@ -27,7 +27,12 @@ public class HudRenderer {
     private static final float HEALTH_BAR_H = 18f;
 
     public HudRenderer() {
-        font = new BitmapFont();
+        this(new BitmapFont());
+    }
+
+    /** GWT-compatible constructor: accepts externally-created font (e.g. from preloaded assets). */
+    public HudRenderer(BitmapFont font) {
+        this.font = font;
         shapes = new ShapeRenderer();
         batch = new SpriteBatch();
         font.setColor(Color.WHITE);

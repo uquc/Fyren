@@ -1,1 +1,3 @@
-t:version.txt:version.txt:10:text/plain:1 
+t:version.txt:version.txt:10:text/plain:1
+t:lsans-15.fnt:lsans-15.fnt:17711:text/plain:1
+i:lsans-15.png:lsans-15.png:10270:image/png:1
