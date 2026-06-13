@@ -1,0 +1,39 @@
+# Fyren Caddyfile — HTTPS reverse proxy with CORS headers
+# Path: C:\Fyren\caddy\Caddyfile
+# Usage: caddy run --config Caddyfile
+
+# —————————————————————————————————————————
+# 全局配置
+# —————————————————————————————————————————
+{
+    http_port 9999
+    auto_https disable_redirects
+}
+
+# —————————————————————————————————————————
+# nip.io domain — Let's Encrypt TLS-ALPN-01
+# —————————————————————————————————————————
+115.29.230.57.nip.io {
+    # CORS headers — applied to ALL responses including errors
+    header {
+        Access-Control-Allow-Origin *
+        Access-Control-Allow-Methods "GET, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type, Authorization"
+        Access-Control-Max-Age "86400"
+    }
+
+    handle /admin/* {
+        respond "Forbidden" 403
+    }
+
+    # Reverse proxy to Java HTTP status server
+    handle {
+        reverse_proxy 127.0.0.1:8080
+    }
+
+    # Logging
+    log {
+        output file C:\Fyren\logs\caddy-access.log
+        format json
+    }
+}
