@@ -22,6 +22,8 @@ import com.Fyren.render.libgdx.MotionTrailEffect;
 import com.Fyren.render.libgdx.ParticleEffects;
 import com.Fyren.render.libgdx.SpriteRenderer;
 import com.Fyren.sync.InputCommand;
+import com.Fyren.network.gwt.GwtNetworkClient;
+import com.Fyren.sync.GwtFrameSyncManager;
 
 import com.google.gwt.dom.client.Style.Unit;
 import com.google.gwt.user.client.ui.HasHorizontalAlignment;
@@ -60,6 +62,10 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
     private ShapeRenderer bgShapes;
 
     private int frameNumber;
+
+    // Network mode
+    private GwtNetworkClient networkClient;
+    private boolean networkMode = false;
 
     @Override
     public GwtApplicationConfiguration getConfig() {
@@ -109,6 +115,17 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
 
     @Override
     public void create() {
+        String mode = getUrlParam("mode");
+        networkMode = "network".equals(mode);
+
+        if (networkMode) {
+            createNetworkMode();
+        } else {
+            createDemoMode();
+        }
+    }
+
+    private void createDemoMode() {
         Gdx.graphics.setTitle("Fyren WebGL — KAGE vs GOU");
 
         gameWorld = new GameWorld();
@@ -129,10 +146,61 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
         frameNumber = 0;
     }
 
+    private void createNetworkMode() {
+        String server = getUrlParam("server");
+        String playerIdStr = getUrlParam("playerId");
+        String presetStr = getUrlParam("preset");
+        if (server == null || server.isEmpty()) server = "localhost";
+        int playerId = 1;
+        try { if (playerIdStr != null) playerId = Integer.parseInt(playerIdStr); } catch (NumberFormatException e) {}
+        FighterPreset p = FighterPreset.KAGE;
+        if (presetStr != null) {
+            try { p = FighterPreset.valueOf(presetStr.toUpperCase()); } catch (IllegalArgumentException e) {}
+        }
+
+        Gdx.graphics.setTitle("Fyren WebGL — Online (P" + playerId + " " + p.getDisplayName() + ")");
+
+        networkClient = new GwtNetworkClient(server, 9878, playerId, p);
+        networkClient.setCallback(new GwtNetworkClient.GameEventCallback() {
+            @Override public void onStateChanged(GwtNetworkClient.ClientState s) {}
+            @Override public void onMatchFound(int oppId, int oppRating) {
+                networkClient.startGame();
+            }
+            @Override public void onGameStart() {}
+            @Override public void onGameOver(int winnerId) {}
+            @Override public void onError(String msg) {
+                System.err.println("[GwtLauncher] " + msg);
+            }
+        });
+        networkClient.connect();
+        networkClient.requestMatch();
+
+        // Initialize render components (network mode uses shared gameWorld from client)
+        gameWorld = networkClient.getGameWorld();
+        inputHandler = new GdxInputHandler();
+        cameraController = new CameraController(960, 540);
+        spriteRenderer = new SpriteRenderer();
+        hudRenderer = new HudRenderer();
+        hitEffects = new HitEffects();
+        particleEffects = new ParticleEffects();
+        motionTrailEffect = new MotionTrailEffect();
+        audioManager = new AudioManager();
+        bgShapes = new ShapeRenderer();
+        frameNumber = 0;
+    }
+
     @Override
     public void render() {
         float delta = Gdx.graphics.getDeltaTime();
 
+        if (networkMode) {
+            renderNetwork(delta);
+        } else {
+            renderDemo(delta);
+        }
+    }
+
+    private void renderDemo(float delta) {
         // === Update ===
         InputCommand cmd1 = inputHandler.samplePlayer1(frameNumber);
         InputCommand cmd2 = inputHandler.samplePlayer2(frameNumber);
@@ -195,6 +263,65 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
         hudRenderer.render(gameWorld, cam);
     }
 
+    private void renderNetwork(float delta) {
+        GwtFrameSyncManager fsm = networkClient.getFrameSyncManager();
+        if (fsm != null && fsm.isRunning()) {
+            InputCommand cmd1 = inputHandler.samplePlayer1(frameNumber);
+            networkClient.setCurrentLocalInput(cmd1);
+            networkClient.submitInput(cmd1.up, cmd1.down, cmd1.left, cmd1.right,
+                    cmd1.punch, cmd1.kick, cmd1.special);
+            fsm.tick(delta * 1000f);
+        }
+
+        Fighter p1 = gameWorld.getPlayer1();
+        Fighter p2 = gameWorld.getPlayer2();
+
+        int hp1Before = p1.getHealth();
+        int hp2Before = p2.getHealth();
+
+        if (hitEffects.isInHitStop()) {
+            hitEffects.update(delta);
+        } else {
+            frameNumber++;
+        }
+
+        int dmg1 = hp1Before - p1.getHealth();
+        int dmg2 = hp2Before - p2.getHealth();
+
+        if (dmg1 > 0) {
+            hitEffects.onHit(p1, p2, p1.getLastRawDamageReceived());
+            particleEffects.spawnHitSpark(p1.getX(), p1.getY() + 50);
+            cameraController.shake(3f + dmg1 * 0.5f, 0.15f);
+        }
+        if (dmg2 > 0) {
+            hitEffects.onHit(p2, p1, p2.getLastRawDamageReceived());
+            particleEffects.spawnHitSpark(p2.getX(), p2.getY() + 50);
+            cameraController.shake(3f + dmg2 * 0.5f, 0.15f);
+        }
+
+        triggerAudio(p1, p2, dmg1, dmg2);
+
+        hitEffects.update(delta);
+        particleEffects.update(delta);
+        motionTrailEffect.sample(p1, p2, delta);
+        cameraController.update(p1, p2, delta);
+
+        ScreenUtils.clear(0.08f, 0.08f, 0.12f, 1f);
+        OrthographicCamera cam = cameraController.getCamera();
+        drawBackground(cam);
+
+        spriteRenderer.begin(cam);
+        spriteRenderer.drawFighter(p1);
+        spriteRenderer.drawFighter(p2);
+        spriteRenderer.end();
+
+        motionTrailEffect.render(cam);
+        particleEffects.render(cam);
+        hitEffects.render(cam);
+
+        hudRenderer.render(gameWorld, cam);
+    }
+
     @Override
     public void resize(int width, int height) {}
 
@@ -225,6 +352,7 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
 
     @Override
     public void dispose() {
+        if (networkClient != null) networkClient.disconnect();
         bgShapes.dispose();
         if (spriteRenderer != null) spriteRenderer.dispose();
         if (hudRenderer != null) hudRenderer.dispose();
@@ -256,4 +384,9 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
         bgShapes.line(480, 50, 480, 540);
         bgShapes.end();
     }
+
+    private static native String getUrlParam(String name) /*-{
+        var match = $wnd.location.search.match(new RegExp('[?&]' + name + '=([^&]*)'));
+        return match ? decodeURIComponent(match[1]) : null;
+    }-*/;
 }
