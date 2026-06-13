@@ -6,6 +6,7 @@ import com.Fyren.auth.JwtTokenProvider;
 import com.Fyren.auth.middleware.AuthMiddleware;
 import com.Fyren.match.MatchManager;
 import com.Fyren.network.*;
+import com.Fyren.network.WsGameServer;
 import com.Fyren.redis.RedisService;
 
 import java.io.IOException;
@@ -37,6 +38,9 @@ public class GameServer {
     private HttpStatusServer httpStatusServer;
     private RedisService redisService;
     private AuthHttpServer authHttpServer;
+    private WsGameServer wsGameServer;
+    private final Set<Integer> wsClientIds = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private java.util.concurrent.ScheduledExecutorService maintenanceScheduler;
 
     // 去重：避免双方客户端都上报 ResultPacket 导致重复统计
     private final Set<String> reportedMatches = Collections.newSetFromMap(new ConcurrentHashMap<>());
@@ -98,6 +102,7 @@ public class GameServer {
         });
 
         udpServer.start();
+        maintenanceScheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
 
         // 启动 HTTP 状态 API（在 matchManager 之前初始化，以便回调引用）
         try {
@@ -123,7 +128,69 @@ public class GameServer {
         matchManager.setOnMatchEnded(() -> {
             if (httpStatusServer != null) httpStatusServer.decrementActiveMatches();
         });
+        // 传输层无关的匹配响应发送器（UDP + WebSocket 统一入口）
+        matchManager.setMatchResponseSender((playerId, response, opponentAddr, opponentPort) -> {
+            // 优先 UDP
+            UdpServer.ClientSession udpSession = udpServer.getClients().get(playerId);
+            if (udpSession != null && udpSession.address != null) {
+                udpServer.sendReliableTo(response, udpSession.address);
+                return;
+            }
+            // WebSocket fallback
+            if (wsGameServer != null) {
+                wsGameServer.sendToPlayer(response, playerId);
+            }
+        });
+
+        // 匹配成功后跨协议建立游戏会话
+        matchManager.setOnMatchFoundCallback((p1, p2) -> {
+            if (wsGameServer != null) {
+                boolean p1ws = wsClientIds.contains(p1);
+                boolean p2ws = wsClientIds.contains(p2);
+                if (p1ws || p2ws) {
+                    wsGameServer.createGameSession(p1, p2);
+                }
+            }
+        });
+
         matchManager.start();
+
+        // 启动 WebSocket 服务端（浏览器客户端，端口 9878）
+        wsGameServer = new WsGameServer(9878);
+        wsGameServer.setOnPacketReceived((packet, wsSession) -> {
+            if (packet instanceof MatchRequestPacket) {
+                MatchRequestPacket mrp = (MatchRequestPacket) packet;
+                // 创建或复用 UdpServer.ClientSession（MatchManager 需要）
+                UdpServer.ClientSession cs = udpServer.getClients().computeIfAbsent(
+                    mrp.playerId, UdpServer.ClientSession::new);
+                cs.rating = mrp.playerRating;
+                cs.lastHeartbeat = System.currentTimeMillis();
+                wsClientIds.add(mrp.playerId);
+                matchManager.handleMatchRequest(mrp, cs);
+            } else if (packet instanceof ResultPacket) {
+                ResultPacket rp = (ResultPacket) packet;
+                String matchKey = Math.min(rp.player1Id, rp.player2Id) + "-"
+                    + Math.max(rp.player1Id, rp.player2Id);
+                if (!reportedMatches.add(matchKey)) return;
+                System.out.printf("[GameServer] 比赛结果(WS): P%d vs P%d, 胜者=%d\n",
+                        rp.player1Id, rp.player2Id, rp.winnerId);
+                reportMatch(rp.player1Id, rp.player2Id, rp.winnerId);
+                if (redisService != null && redisService.isAvailable()) {
+                    try {
+                        com.Fyren.match.PlayerRating r1 = matchManager.getPlayerRating(rp.player1Id);
+                        com.Fyren.match.PlayerRating r2 = matchManager.getPlayerRating(rp.player2Id);
+                        if (r1 != null) redisService.updateMmr(rp.player1Id, r1.getRating());
+                        if (r2 != null) redisService.updateMmr(rp.player2Id, r2.getRating());
+                    } catch (Exception ex) { /* non-critical */ }
+                }
+            }
+        });
+        wsGameServer.start();
+
+        // 定时清理超时的 WebSocket 客户端
+        maintenanceScheduler.scheduleAtFixedRate(() -> {
+            if (wsGameServer != null) wsGameServer.checkClientTimeouts();
+        }, 5, 5, java.util.concurrent.TimeUnit.SECONDS);
 
         // 启动认证 API（端口 8081）
         try {
@@ -137,6 +204,7 @@ public class GameServer {
         System.out.println("  Fyren 格斗游戏服务器已启动");
         System.out.println("  UDP 游戏端口: " + port);
         System.out.println("  HTTP 状态端口: 8080");
+        System.out.println("  WebSocket 端口: 9878");
         System.out.println("  认证 API 端口: 8081");
         System.out.println("  Redis: " + (redisService.isAvailable() ? "已连接" : "内存模式"));
         System.out.println("  输入 'stop' 停止服务器");
@@ -152,6 +220,10 @@ public class GameServer {
         if (httpStatusServer != null) httpStatusServer.stop();
         if (matchManager != null) matchManager.stop();
         if (udpServer != null) udpServer.stop();
+        if (wsGameServer != null) {
+            try { wsGameServer.stop(); } catch (Exception e) { /* ignore */ }
+        }
+        if (maintenanceScheduler != null) maintenanceScheduler.shutdown();
         if (redisService != null) redisService.close();
         System.out.println("[GameServer] 服务器已停止");
     }
