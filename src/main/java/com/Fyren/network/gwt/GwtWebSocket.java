@@ -36,8 +36,12 @@ public class GwtWebSocket {
 
         ws.onmessage = function(event) {
             if (event.data instanceof ArrayBuffer) {
-                var data = new Int8Array(event.data);
-                self.@com.Fyren.network.gwt.GwtWebSocket::onMessage([B)(data);
+                var bytes = new Int8Array(event.data);
+                var arr = [];
+                for (var i = 0; i < bytes.length; i++) {
+                    arr[i] = bytes[i];
+                }
+                self.@com.Fyren.network.gwt.GwtWebSocket::onMessage([B)(arr);
             }
         };
 
