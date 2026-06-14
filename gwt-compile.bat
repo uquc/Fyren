@@ -73,6 +73,11 @@ if %ERRORLEVEL% EQU 0 (
     if exist gwt-assets\version.txt copy /y gwt-assets\version.txt target\gwt-out\fyren\version.txt >nul
     if exist gwt-assets\lsans-15.fnt copy /y gwt-assets\lsans-15.fnt target\gwt-out\fyren\lsans-15.fnt >nul
     if exist gwt-assets\lsans-15.png copy /y gwt-assets\lsans-15.png target\gwt-out\fyren\lsans-15.png >nul
+    REM Also output assets to parent-level assets/ for GWT preloader
+    if not exist target\gwt-out\assets mkdir target\gwt-out\assets
+    copy /y target\gwt-out\fyren\assets.txt target\gwt-out\assets\assets.txt >nul
+    copy /y target\gwt-out\fyren\lsans-15.fnt target\gwt-out\assets\lsans-15.fnt >nul
+    copy /y target\gwt-out\fyren\lsans-15.png target\gwt-out\assets\lsans-15.png >nul
     echo.
     echo === GWT Compilation Complete ===
     echo Output: target\gwt-out\

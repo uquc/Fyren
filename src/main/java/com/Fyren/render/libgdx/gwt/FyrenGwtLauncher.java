@@ -215,10 +215,8 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
         int hp1Before = p1.getHealth();
         int hp2Before = p2.getHealth();
 
-        // Hit stop 检测
-        if (hitEffects.isInHitStop()) {
-            hitEffects.update(delta);
-        } else {
+        // Hit stop — skip game world update during hit-stop frames
+        if (!hitEffects.isInHitStop()) {
             gameWorld.update(inputs, frameNumber);
             frameNumber++;
         }
@@ -280,9 +278,7 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
         int hp1Before = p1.getHealth();
         int hp2Before = p2.getHealth();
 
-        if (hitEffects.isInHitStop()) {
-            hitEffects.update(delta);
-        } else {
+        if (!hitEffects.isInHitStop()) {
             frameNumber++;
         }
 

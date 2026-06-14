@@ -110,10 +110,8 @@ public class GameScreen {
         int hp1Before = p1.getHealth();
         int hp2Before = p2.getHealth();
 
-        // Hit stop 检测
-        if (hitEffects != null && hitEffects.isInHitStop()) {
-            hitEffects.update(delta);
-        } else {
+        // Hit stop — skip game world update during hit-stop frames
+        if (hitEffects == null || !hitEffects.isInHitStop()) {
             gameWorld.update(inputs, frameNumber);
             frameNumber++;
         }
