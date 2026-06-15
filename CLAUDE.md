@@ -253,7 +253,45 @@ Swing mode (legacy, retained):
   Swing Timer → GamePanel.repaint() → StickFigureRenderer
 ```
 
-## Current Session (2026-06-14) — Bug #25 + #26 修复
+## Current Session (2026-06-15) — GitHub Pages 全面改版 + ECS 恢复 + Release v1.2
+
+**成果:** `docs/index.html` 从基础产品页重写为 8 板块技术 Portfolio 落地页。
+
+### 页面结构（从上到下）
+| # | 板块 | 说明 |
+|---|------|------|
+| 1 | Hero | 标题 + 副标题 + badge |
+| 2 | 状态面板 | ECS 实时状态（优雅降级离线） |
+| 3 | Game Demo | WebGL iframe + 操作说明 |
+| 4 | 角色系统 | KAGE 影 / TAKESHI 武 / GOU 刚，属性条 |
+| 5 | 技术架构 | CSS 拓扑图 + 4 关键设计决策 |
+| 6 | 轮子拆解 | 4 模块卡片 + 语法高亮代码片段 |
+| 7 | 下载 | 合规声明 → GitHub Release v1.2 |
+| 8 | Footer | 版权 + 7 技术栈 badges |
+
+**视觉:** 暗底 `#0a0a0f` + 双强调色（橙 `#ff6b35` 游戏 / 青 `#4ecdc4` 技术），纯 CSS 零图片依赖。
+
+### ECS 恢复 (2026-06-15)
+- 服务器一直在运行（watchdog 保活），端口 9878 WS + 443 TCP 正常
+- 8080 HTTP 端口：安全组 + 防火墙规则均正常，但大量 CLOSE_WAIT 堆积导致连接拒绝
+- 重启 Java 进程解决，status API 恢复正常响应
+
+### GitHub Release v1.2
+- `https://github.com/uquc/Fyren/releases/tag/v1.2` — 附带 fat JAR (18MB)
+- 下载按钮 → 合规声明 → 跳转 Release 页面
+
+### 会话语录
+```
+0a3a8fe verify: GitHub Pages redesign — all 8 sections live at uquc.github.io/Fyren
+eb558d8 feat: add Download section + Footer with tech badges
+3d528d3 feat: add Deep Dive section — 4 module cards with syntax-highlighted code
+c644826 feat: add Architecture section — CSS topology diagram + design decisions
+5d12982 feat: add Characters section -- 3 fighter cards with stats
+3267687 feat: landing page shell — Hero + Status + Demo sections
+781b66d docs: GitHub Pages redesign spec — tech portfolio landing page
+```
+
+## Historical Session (2026-06-14) — Bug #25 + #26 修复
 
 ### Bug #25 (P0): GWT preloader 资源路径错误 ✅
 
