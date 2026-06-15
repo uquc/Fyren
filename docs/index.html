@@ -221,7 +221,41 @@ body {
 .dd-code .str { color: #ff6b35; }
 .dd-code .cm { color: #555; font-style: italic; }
 .dd-code .nm { color: #a29bfe; }
-.dd-code .fn { color: #ffeaa7; }
+/* === DOWNLOAD === */
+.dl-section { text-align: center; padding: 0 20px 60px; }
+.dl-btn {
+    display: inline-block; padding: 14px 48px;
+    background: #ff6b35; color: #fff; text-decoration: none;
+    border-radius: 6px; font-size: 1.05em; font-weight: bold;
+    letter-spacing: 1px; transition: background 0.2s, transform 0.15s;
+    cursor: pointer; border: none; font-family: inherit;
+}
+.dl-btn:hover { background: #e55a2b; transform: translateY(-1px); }
+.dl-note {
+    display: none; margin: 20px auto 0; padding: 16px 24px;
+    background: #141420; border-left: 3px solid #ff6b35;
+    font-size: 0.78em; color: #888; max-width: 520px;
+    text-align: left; line-height: 1.7; border-radius: 0 6px 6px 0;
+}
+.dl-note button {
+    margin-top: 12px; padding: 8px 22px;
+    background: #4ecdc4; color: #0a0a0f; border: none;
+    border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.95em;
+}
+.dl-note button:hover { background: #3dbdb5; }
+
+/* === FOOTER === */
+.site-footer {
+    text-align: center; padding: 30px 20px; color: #444; font-size: 0.78em;
+    border-top: 1px solid #141420;
+}
+.site-footer .badges { margin-top: 10px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.site-footer .badges span {
+    background: #141420; border: 1px solid #1e1e30; border-radius: 4px;
+    padding: 2px 10px; font-size: 0.8em; color: #666; letter-spacing: 0.5px;
+}
+.site-footer a { color: #4ecdc4; text-decoration: none; }
+.site-footer a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -552,7 +586,45 @@ function fetchStatus() {
 
 fetchStatus();
 setInterval(fetchStatus, 10000);
+
+function showCompliance() {
+    document.getElementById('dl-note').style.display = 'block';
+}
+
+function proceedDownload() {
+    window.open('https://github.com/uquc/Fyren/releases/tag/v1.2', '_blank');
+}
 </script>
 
+<!-- DOWNLOAD -->
+<div class="section-divider"></div>
+<h2 class="section-title">&#x2B07; <span>下 载</span></h2>
+
+<section class="dl-section">
+    <button class="dl-btn" onclick="showCompliance()">下载 Windows 版 (JAR)</button>
+    <div class="dl-note" id="dl-note">
+        <strong>合规分发说明</strong><br>
+        本软件为个人技术作品展示，仅供学习交流与技术验证。<br>
+        不涉及商业运营，不提供游戏道具购买、虚拟货币充值等服务。<br>
+        下载即表示您同意仅将本软件用于个人学习目的。<br>
+        <button onclick="proceedDownload()">同意并前往下载</button>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="site-footer">
+    Fyren &copy; 2026 &middot; 个人技术作品 &middot; 非商业项目<br>
+    <div class="badges">
+        <span>Java 17</span>
+        <span>libGDX 1.12</span>
+        <span>WebSocket</span>
+        <span>JWT</span>
+        <span>Redis</span>
+        <span>GWT</span>
+        <span>Maven</span>
+    </div>
+    <br>
+    <a href="https://github.com/uquc/Fyren">GitHub</a>
+</footer>
 </body>
 </html>
