@@ -5,190 +5,135 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fyren — 自研帧同步格斗游戏</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
+/* === RESET & BASE === */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 body {
-    background: #0a0a10; color: #e0e0e0;
+    background: #0a0a0f; color: #e0e0e0;
     font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-    min-height: 100vh;
+    line-height: 1.7; min-height: 100vh;
 }
-header {
-    text-align: center; padding: 40px 20px 20px;
-    background: linear-gradient(180deg, #12121f 0%, #0a0a10 100%);
-}
-header h1 { font-size: 2.8em; color: #ff6b35; letter-spacing: 6px; }
-header .subtitle { color: #888; margin-top: 8px; font-size: 1.1em; }
-header .badge {
-    display: inline-block; margin-top: 12px; padding: 4px 16px;
-    background: #1a1a2e; border: 1px solid #2a2a4e; border-radius: 20px;
-    font-size: 0.85em; color: #666;
-}
-.container { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
 
-/* 状态面板 */
+/* === TYPOGRAPHY === */
+.section-title {
+    text-align: center; font-size: 1.4em; color: #ccc;
+    letter-spacing: 3px; text-transform: uppercase;
+    padding: 80px 0 40px;
+}
+.section-title span { color: #4ecdc4; }
+
+/* === HERO === */
+.hero {
+    text-align: center; padding: 60px 20px 30px;
+    background: linear-gradient(180deg, #12121f 0%, #0a0a0f 100%);
+}
+.hero h1 { font-size: 3em; color: #ff6b35; letter-spacing: 8px; font-weight: 700; }
+.hero .subtitle { color: #888; margin-top: 10px; font-size: 1.1em; }
+.hero .badge {
+    display: inline-block; margin-top: 14px; padding: 4px 18px;
+    background: #141420; border: 1px solid #1e1e30; border-radius: 20px;
+    font-size: 0.82em; color: #666;
+}
+.hero .tagline {
+    max-width: 560px; margin: 20px auto 0; color: #666; font-size: 0.9em; line-height: 1.7;
+}
+
+/* === STATUS BAR === */
 .status-panel {
-    display: flex; gap: 18px; justify-content: center; flex-wrap: wrap;
-    padding: 24px 0;
+    display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+    padding: 40px 20px 50px; max-width: 1100px; margin: 0 auto;
 }
 .status-card {
-    background: #1a1a2e; border: 1px solid #2a2a4e; border-radius: 10px;
-    padding: 18px 28px; text-align: center; min-width: 120px;
+    background: #141420; border: 1px solid #1e1e30; border-radius: 8px;
+    padding: 16px 24px; text-align: center; min-width: 110px; flex: 0 0 auto;
     transition: border-color 0.3s;
 }
-.status-card:hover { border-color: #4ecdc4; }
-.status-card .label { font-size: 0.75em; color: #666; text-transform: uppercase; letter-spacing: 1px; }
-.status-card .value {
-    font-size: 1.8em; font-weight: bold; color: #ff6b35; margin-top: 6px;
-}
+.status-card .label { font-size: 0.7em; color: #555; text-transform: uppercase; letter-spacing: 1.5px; }
+.status-card .value { font-size: 1.6em; font-weight: bold; color: #ff6b35; margin-top: 4px; }
+.status-card.online { border-color: #4ecdc4; }
 .status-card.online .value { color: #4ecdc4; }
 
-/* 游戏区 */
-.game-section { text-align: center; padding: 16px 0 30px; }
-.game-section h2 { font-size: 1.3em; color: #ccc; margin-bottom: 14px; }
-#game-container {
-    display: inline-block; border: 2px solid #2a2a4e; border-radius: 6px;
-    background: #000; box-shadow: 0 0 40px rgba(78,205,196,0.08);
+/* === GAME DEMO === */
+.demo-section { text-align: center; padding: 0 20px 60px; max-width: 1100px; margin: 0 auto; }
+.demo-wrapper {
+    display: inline-block; border: 1px solid #1e1e30; border-radius: 4px;
+    background: #000; overflow: hidden; line-height: 0;
 }
-#game-container iframe { width: 960px; height: 540px; border: none; display: block; }
-.game-hint {
-    margin-top: 12px; color: #555; font-size: 0.82em; line-height: 1.6;
+.demo-wrapper iframe { width: 960px; height: 540px; border: none; display: block; }
+.demo-hint { margin-top: 16px; color: #555; font-size: 0.8em; line-height: 1.7; }
+.demo-hint code { background: #141420; padding: 2px 6px; border-radius: 3px; font-size: 0.95em; color: #4ecdc4; }
+.demo-hint a { color: #4ecdc4; text-decoration: none; }
+.demo-hint a:hover { text-decoration: underline; }
+
+/* === SECTION DIVIDER === */
+.section-divider {
+    width: 60px; height: 2px; background: #1e1e30; margin: 0 auto;
 }
 
-/* 下载区 */
-.download-section { text-align: center; padding: 0 0 50px; }
-.download-section h2 { font-size: 1.3em; color: #ccc; margin-bottom: 14px; }
-.download-btn {
-    display: inline-block; padding: 14px 48px;
-    background: #ff6b35; color: #fff; text-decoration: none;
-    border-radius: 8px; font-size: 1.1em; font-weight: bold;
-    transition: background 0.2s, transform 0.15s; cursor: pointer; border: none;
-}
-.download-btn:hover { background: #e55a2b; transform: translateY(-1px); }
-.compliance-note {
-    margin-top: 18px; padding: 14px 28px; background: #1a1a2e;
-    border-left: 3px solid #ff6b35; font-size: 0.78em; color: #888;
-    display: none; text-align: left; max-width: 580px;
-    margin-left: auto; margin-right: auto; line-height: 1.7; border-radius: 0 6px 6px 0;
-}
-.compliance-note button {
-    margin-top: 10px; padding: 6px 18px; background: #4ecdc4; color: #0a0a10;
-    border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.95em;
-}
-.compliance-note button:hover { background: #3dbdb5; }
-
-/* 特性介绍 */
-.features {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 18px; padding: 30px 0 20px;
-}
-.feature {
-    background: #1a1a2e; border: 1px solid #2a2a4e; border-radius: 10px;
-    padding: 20px;
-}
-.feature h3 { color: #ccc; font-size: 1.05em; margin-bottom: 8px; }
-.feature p { color: #666; font-size: 0.85em; line-height: 1.6; }
-
-footer {
-    text-align: center; padding: 24px; color: #444; font-size: 0.78em;
-    border-top: 1px solid #1a1a2e; margin-top: 20px;
+/* === RESPONSIVE === */
+@media (max-width: 1000px) {
+    .demo-wrapper iframe { width: 100vw; height: calc(100vw * 9 / 16); }
+    .status-panel { gap: 10px; padding: 30px 10px 40px; }
+    .status-card { padding: 12px 16px; min-width: 80px; }
+    .status-card .value { font-size: 1.3em; }
 }
 </style>
 </head>
 <body>
-<header>
+
+<!-- HERO -->
+<header class="hero">
     <h1>F Y R E N</h1>
     <p class="subtitle">自研帧同步格斗游戏 · 个人技术作品</p>
     <span class="badge">非商业项目 · 仅供技术交流</span>
+    <p class="tagline">
+        从帧同步引擎到 P2P 打洞，从打击感到 WebSocket 跨平台联机——<br>一个全栈技术验证项目，所有轮子自己造。
+    </p>
 </header>
 
-<div class="container">
-    <!-- 服务端状态 -->
-    <div class="status-panel" id="status-panel">
-        <div class="status-card" id="card-status">
-            <div class="label">服务器</div>
-            <div class="value" id="svr-status">检测中</div>
-        </div>
-        <div class="status-card">
-            <div class="label">运行时长</div>
-            <div class="value" id="svr-uptime">--</div>
-        </div>
-        <div class="status-card">
-            <div class="label">在线玩家</div>
-            <div class="value" id="svr-players">0</div>
-        </div>
-        <div class="status-card">
-            <div class="label">进行中</div>
-            <div class="value" id="svr-matches">0</div>
-        </div>
-        <div class="status-card">
-            <div class="label">累计对战</div>
-            <div class="value" id="svr-total">0</div>
-        </div>
+<!-- STATUS BAR -->
+<section class="status-panel" id="status-panel">
+    <div class="status-card" id="card-status">
+        <div class="label">服务器</div>
+        <div class="value" id="svr-status">检测中</div>
     </div>
-
-    <!-- 技术特性 -->
-    <div class="features">
-        <div class="feature">
-            <h3>帧同步引擎</h3>
-            <p>乐观帧锁定 + GGPO式回滚，最大10帧预测窗口，确定性更新循环</p>
-        </div>
-        <div class="feature">
-            <h3>MMR 匹配</h3>
-            <p>ELO 算法 + 扩散窗口，隐藏分匹配，公平对战</p>
-        </div>
-        <div class="feature">
-            <h3>打击感系统</h3>
-            <p>Hit stop 停帧 + 屏幕震动 + 命中火花 + 受击闪烁 + 运动残影</p>
-        </div>
-        <div class="feature">
-            <h3>三位格斗家</h3>
-            <p>影（KAGE）蓝方速攻 · 武（TAKESHI）赤拳蓄力 · 刚（GOU）绿盾反击</p>
-        </div>
-        <div class="feature">
-            <h3>跨平台联机</h3>
-            <p>WebSocket + UDP 混合服务器，浏览器与桌面客户端同池匹配对战</p>
-        </div>
-        <div class="feature">
-            <h3>P2P UDP 打洞</h3>
-            <p>纯 Java NAT 穿透，直连低延迟，对称 NAT 自动降级服务端中继</p>
-        </div>
+    <div class="status-card">
+        <div class="label">运行时长</div>
+        <div class="value" id="svr-uptime">--</div>
     </div>
-
-    <!-- WebGL Demo -->
-    <div class="game-section">
-        <h2>网页体验版（WebGL · 点开即玩）</h2>
-        <div id="game-container">
-            <iframe id="game-frame" src="fyren/index.html" allowfullscreen
-                    title="Fyren WebGL Demo"></iframe>
-        </div>
-        <p class="game-hint">
-            双人本地对战 · P1: WASD + JKU · P2: 方向键 + 123<br>
-            WebGL 体验版已支持联网对战 — 通过 URL 参数 ?mode=network 启用<br>
-            *完整游戏体验（P2P 直连、音效、排行榜）请下载桌面版
-        </p>
+    <div class="status-card">
+        <div class="label">在线玩家</div>
+        <div class="value" id="svr-players">0</div>
     </div>
-
-    <!-- 下载 -->
-    <div class="download-section">
-        <h2>完整版下载</h2>
-        <button class="download-btn" onclick="showCompliance()">下载 Windows 版 (EXE)</button>
-        <div class="compliance-note" id="compliance-note">
-            <strong>合规分发说明</strong><br>
-            本软件为个人技术作品展示，仅供学习交流与技术验证。<br>
-            不涉及商业运营，不提供游戏道具购买、虚拟货币充值等服务。<br>
-            下载即表示您同意仅将本软件用于个人学习目的。<br>
-            <button onclick="proceedDownload()">同意并前往下载</button>
-        </div>
+    <div class="status-card">
+        <div class="label">进行中</div>
+        <div class="value" id="svr-matches">0</div>
     </div>
-</div>
+    <div class="status-card">
+        <div class="label">累计对战</div>
+        <div class="value" id="svr-total">0</div>
+    </div>
+</section>
 
-<footer>
-    Fyren &copy; 2026 · 个人技术作品 · 非商业项目
-</footer>
+<!-- GAME DEMO -->
+<div class="section-divider"></div>
+<h2 class="section-title" style="padding-top:60px;">&#x25B6; <span>体 验</span></h2>
+
+<section class="demo-section">
+    <div class="demo-wrapper">
+        <iframe src="fyren/index.html" allowfullscreen
+                title="Fyren WebGL Demo"></iframe>
+    </div>
+    <p class="demo-hint">
+        WebGL 双人本地对战 · 点开即玩<br>
+        <strong>P1:</strong> <code>WASD</code> 移动 · <code>J</code>拳 <code>K</code>脚 <code>U</code>特殊技 ·
+        <strong>P2:</strong> <code>方向键</code> 移动 · <code>1</code>拳 <code>2</code>脚 <code>3</code>特殊技<br>
+        联网对战: 访问 <a href="fyren/?mode=network&server=115.29.230.57&playerId=guest">fyren/?mode=network</a>
+    </p>
+</section>
 
 <script>
-// 替换为实际 ECS IP
 var STATUS_URL = 'https://115.29.230.57.nip.io/status';
-var PAN_URL = 'https://github.com/uquc/Fyren/releases/latest';
 
 function fetchStatus() {
     fetch(STATUS_URL)
@@ -207,19 +152,13 @@ function fetchStatus() {
         .catch(function() {
             document.getElementById('svr-status').textContent = '离线';
             document.getElementById('card-status').className = 'status-card';
+            document.getElementById('svr-uptime').textContent = '--';
         });
-}
-
-function showCompliance() {
-    document.getElementById('compliance-note').style.display = 'inline-block';
-}
-
-function proceedDownload() {
-    window.open(PAN_URL, '_blank');
 }
 
 fetchStatus();
 setInterval(fetchStatus, 10000);
 </script>
+
 </body>
 </html>
