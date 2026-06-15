@@ -125,6 +125,70 @@ body {
 @media (max-width: 700px) {
     .char-grid { grid-template-columns: 1fr; }
 }
+
+/* === ARCHITECTURE === */
+.arch-section { max-width: 1000px; margin: 0 auto; padding: 0 20px 60px; }
+
+/* topology diagram */
+.arch-diagram {
+    display: flex; flex-direction: column; align-items: center; gap: 0;
+    padding: 30px 0 50px;
+}
+.arch-row { display: flex; gap: 30px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.arch-node {
+    background: #141420; border: 1px solid #1e1e30; border-radius: 6px;
+    padding: 12px 20px; text-align: center; font-size: 0.82em; min-width: 180px;
+    transition: border-color 0.3s;
+}
+.arch-node:hover { border-color: #4ecdc4; }
+.arch-node .arch-label { color: #ccc; font-weight: bold; letter-spacing: 1px; }
+.arch-node .arch-detail { color: #666; font-size: 0.85em; margin-top: 2px; }
+.arch-node.client { border-color: #2a2a4e; }
+.arch-node.server { border-color: #ff6b35; }
+.arch-node.storage { border-color: #2a2a4e; }
+
+.arch-connector {
+    width: 2px; height: 24px; background: #1e1e30; margin: 0 auto;
+    position: relative;
+}
+.arch-connector::after {
+    content: ''; position: absolute; bottom: -4px; left: -4px;
+    border-left: 6px solid transparent; border-right: 6px solid transparent;
+    border-top: 6px solid #1e1e30;
+}
+.arch-conn-label {
+    font-size: 0.65em; color: #555; text-align: center;
+    margin: -6px 0 -6px; letter-spacing: 1px;
+}
+
+.arch-server-inner {
+    background: #141420; border: 2px solid #ff6b35; border-radius: 8px;
+    padding: 20px 24px; text-align: center; max-width: 600px; width: 100%;
+}
+.arch-server-inner .arch-label { font-size: 1em; margin-bottom: 12px; }
+.arch-subs {
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+    font-size: 0.75em; color: #777;
+}
+.arch-subs span {
+    background: #0d0d14; border: 1px solid #1e1e30; border-radius: 4px;
+    padding: 4px 10px; white-space: nowrap;
+}
+
+/* design decisions */
+.arch-decisions {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 40px;
+}
+.arch-decision {
+    background: #141420; border: 1px solid #1e1e30; border-left: 3px solid #4ecdc4;
+    border-radius: 0 6px 6px 0; padding: 16px 20px;
+}
+.arch-decision h4 { color: #ccc; font-size: 0.9em; margin-bottom: 4px; letter-spacing: 1px; }
+.arch-decision p { color: #777; font-size: 0.8em; line-height: 1.5; }
+
+@media (max-width: 700px) {
+    .arch-decisions { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
@@ -227,6 +291,82 @@ body {
                 <div class="char-bar-row"><span>力量</span><div class="char-bar-track"><div class="char-bar-fill power" style="width:70%"></div></div></div>
                 <div class="char-bar-row"><span>射程</span><div class="char-bar-track"><div class="char-bar-fill range" style="width:60%"></div></div></div>
             </div>
+        </div>
+    </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<div class="section-divider"></div>
+<h2 class="section-title">&#x25C9; <span>架 构</span></h2>
+
+<section class="arch-section">
+    <div class="arch-diagram">
+        <!-- Clients row -->
+        <div class="arch-row">
+            <div class="arch-node client">
+                <div class="arch-label">WebGL / GWT</div>
+                <div class="arch-detail">浏览器 · WebSocket</div>
+            </div>
+            <div class="arch-node client">
+                <div class="arch-label">libGDX / LWJGL3</div>
+                <div class="arch-detail">桌面 · UDP + P2P</div>
+            </div>
+        </div>
+
+        <div class="arch-connector"></div>
+        <div class="arch-conn-label">WS :9878 &amp; UDP :9876</div>
+        <div class="arch-connector"></div>
+
+        <!-- Server row -->
+        <div class="arch-server-inner">
+            <div class="arch-label" style="color:#ff6b35;">Game Server (Java 17)</div>
+            <div class="arch-subs">
+                <span>Matchmaker (ELO)</span>
+                <span>FrameSyncManager</span>
+                <span>P2P Relay</span>
+                <span>WsGameServer</span>
+                <span>UdpServer</span>
+            </div>
+        </div>
+
+        <div class="arch-connector"></div>
+        <div class="arch-conn-label">存储 &amp; 鉴权</div>
+        <div class="arch-connector"></div>
+
+        <!-- Storage row -->
+        <div class="arch-row">
+            <div class="arch-node storage">
+                <div class="arch-label">Redis</div>
+                <div class="arch-detail">用户 · Token · 排行榜</div>
+            </div>
+            <div class="arch-node storage">
+                <div class="arch-label">Auth API :8081</div>
+                <div class="arch-detail">JWT 双 Token · bcrypt</div>
+            </div>
+            <div class="arch-node storage">
+                <div class="arch-label">Status API :8080</div>
+                <div class="arch-detail">HTTP JSON · 实时状态</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Design Decisions -->
+    <div class="arch-decisions">
+        <div class="arch-decision">
+            <h4>确定性模拟</h4>
+            <p>GameWorld.update() 每帧按 playerId 排序输入，不使用浮点 RNG——保证 Java strictfp 下所有客户端计算一致。</p>
+        </div>
+        <div class="arch-decision">
+            <h4>GGPO 式回滚</h4>
+            <p>乐观帧锁定，预测执行 + 状态快照。远程输入校验不通过时回滚最多 10 帧，用已确认输入重新模拟。</p>
+        </div>
+        <div class="arch-decision">
+            <h4>P2P 降级策略</h4>
+            <p>对称 NAT 下 UDP 打洞自动回退服务器中继。纯 Java 实现，零外部 STUN/TURN 依赖。</p>
+        </div>
+        <div class="arch-decision">
+            <h4>跨协议匹配池</h4>
+            <p>UDP 客户端和 WebSocket 浏览器共享同一个 MatchManager 实例。MatchResponseSender 接口解耦传输层。</p>
         </div>
     </div>
 </section>
