@@ -65,7 +65,10 @@
       "Bash(mkdir -p \"C:/Users/aa/chrome-debug-profile\")",
       "Bash(start chrome *)",
       "Bash(curl *)",
-      "Bash(dir /s /b src\\\\test\\\\java\\\\*.java)"
+      "Bash(dir /s /b src\\\\test\\\\java\\\\*.java)",
+      "WebFetch(domain:115.29.230.57.nip.io)",
+      "Bash(netstat -ano)",
+      "Bash(gh auth *)"
     ]
   }
 }

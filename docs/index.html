@@ -77,6 +77,54 @@ body {
     .status-card { padding: 12px 16px; min-width: 80px; }
     .status-card .value { font-size: 1.3em; }
 }
+/* === CHARACTERS === */
+.char-section { max-width: 1000px; margin: 0 auto; padding: 0 20px 60px; }
+.char-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+.char-card {
+    background: #141420; border: 1px solid #1e1e30; border-radius: 8px;
+    padding: 28px 24px; position: relative; overflow: hidden;
+    transition: border-color 0.3s;
+}
+.char-card::before {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: 3px; height: 100%;
+}
+.char-card.kage::before { background: #6c5ce7; }
+.char-card.takeshi::before { background: #e17055; }
+.char-card.gou::before { background: #00b894; }
+
+.char-card .char-en { font-size: 1.3em; font-weight: bold; letter-spacing: 3px; color: #ccc; }
+.char-card .char-kanji {
+    font-size: 2.4em; font-weight: bold; margin: 4px 0 8px; line-height: 1;
+}
+.char-card.kage .char-kanji { color: #6c5ce7; }
+.char-card.takeshi .char-kanji { color: #e17055; }
+.char-card.gou .char-kanji { color: #00b894; }
+
+.char-card .char-role {
+    font-size: 0.78em; color: #555; text-transform: uppercase; letter-spacing: 2px;
+    margin-bottom: 12px;
+}
+.char-card .char-mechanic { font-size: 0.85em; color: #888; line-height: 1.6; }
+.char-card .char-mechanic strong { color: #ccc; }
+
+.char-card .char-bars { margin-top: 16px; display: flex; flex-direction: column; gap: 5px; }
+.char-bar-row { display: flex; align-items: center; gap: 8px; font-size: 0.72em; color: #666; }
+.char-bar-row span:first-child { width: 30px; text-align: right; }
+.char-bar-track {
+    flex: 1; height: 4px; background: #1e1e30; border-radius: 2px; overflow: hidden;
+}
+.char-bar-fill { height: 100%; border-radius: 2px; }
+.char-bar-fill.speed { background: #4ecdc4; }
+.char-bar-fill.power { background: #ff6b35; }
+.char-bar-fill.range { background: #a29bfe; }
+
+@media (max-width: 700px) {
+    .char-grid { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
@@ -130,6 +178,57 @@ body {
         <strong>P2:</strong> <code>方向键</code> 移动 · <code>1</code>拳 <code>2</code>脚 <code>3</code>特殊技<br>
         联网对战: 访问 <a href="fyren/?mode=network&server=115.29.230.57&playerId=guest">fyren/?mode=network</a>
     </p>
+</section>
+
+<!-- CHARACTERS -->
+<div class="section-divider"></div>
+<h2 class="section-title">&#x2694; <span>角 色</span></h2>
+
+<section class="char-section">
+    <div class="char-grid">
+        <div class="char-card kage">
+            <div class="char-en">KAGE</div>
+            <div class="char-kanji">影</div>
+            <div class="char-role">速攻型 · Rushdown</div>
+            <p class="char-mechanic">
+                <strong>特殊技取消</strong> — 特殊技可在攻击恢复帧中发动，瞬间取消硬直。<br>
+                <strong>CD: 3秒</strong>
+            </p>
+            <div class="char-bars">
+                <div class="char-bar-row"><span>速度</span><div class="char-bar-track"><div class="char-bar-fill speed" style="width:90%"></div></div></div>
+                <div class="char-bar-row"><span>力量</span><div class="char-bar-track"><div class="char-bar-fill power" style="width:40%"></div></div></div>
+                <div class="char-bar-row"><span>射程</span><div class="char-bar-track"><div class="char-bar-fill range" style="width:50%"></div></div></div>
+            </div>
+        </div>
+        <div class="char-card takeshi">
+            <div class="char-en">TAKESHI</div>
+            <div class="char-kanji">武</div>
+            <div class="char-role">蓄力型 · Brawler</div>
+            <p class="char-mechanic">
+                <strong>伤害充能</strong> — 累计造成 40 点伤害后，特殊技威力翻倍。<br>
+                <strong>重拳压制</strong>
+            </p>
+            <div class="char-bars">
+                <div class="char-bar-row"><span>速度</span><div class="char-bar-track"><div class="char-bar-fill speed" style="width:50%"></div></div></div>
+                <div class="char-bar-row"><span>力量</span><div class="char-bar-track"><div class="char-bar-fill power" style="width:85%"></div></div></div>
+                <div class="char-bar-row"><span>射程</span><div class="char-bar-track"><div class="char-bar-fill range" style="width:45%"></div></div></div>
+            </div>
+        </div>
+        <div class="char-card gou">
+            <div class="char-en">GOU</div>
+            <div class="char-kanji">刚</div>
+            <div class="char-role">反击型 · Counter</div>
+            <p class="char-mechanic">
+                <strong>受击充能</strong> — 累计承受 50 点伤害后，特殊技反击威力翻倍。<br>
+                <strong>格挡坚韧</strong>
+            </p>
+            <div class="char-bars">
+                <div class="char-bar-row"><span>速度</span><div class="char-bar-track"><div class="char-bar-fill speed" style="width:35%"></div></div></div>
+                <div class="char-bar-row"><span>力量</span><div class="char-bar-track"><div class="char-bar-fill power" style="width:70%"></div></div></div>
+                <div class="char-bar-row"><span>射程</span><div class="char-bar-track"><div class="char-bar-fill range" style="width:60%"></div></div></div>
+            </div>
+        </div>
+    </div>
 </section>
 
 <script>

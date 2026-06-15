@@ -174,6 +174,8 @@ FyrenLauncher (main, CLI) → FyrenGame (ApplicationListener)
 - No background art (black background with procedural ground/grid lines).
 - `float` coordinates — fine for single-platform (Java strictfp), not cross-platform deterministic.
 - GWT/WebGL target compiles to JS (5 permutations, ~6.8MB each), served via `docs/fyren/index.html`. Requires manual `mvn dependency:sources` for gdx/gdx-backend-gwt before first build. Network mode (`?mode=network`) works via WebSocket — browser always server-relay.
+- **GWT preloader assets path:** Preloader looks for assets at `docs/assets/` (parent of `docs/fyren/`). Must keep `docs/assets/assets.txt` + font files in sync with compiled JS expectations. Updated `gwt-compile.bat` to auto-copy assets to both locations.
+- **GWT sound path:** Preloader looks for sounds at `assets/assets/sounds/` (double prefix) — GWT audio already silently degrades, so harmless.
 - ECS Redis 未连接（内存模式，重启丢失用户数据）。
 - 无跳跃设计。
 
@@ -251,7 +253,35 @@ Swing mode (legacy, retained):
   Swing Timer → GamePanel.repaint() → StickFigureRenderer
 ```
 
-## Current Session (2026-06-13) — GWT WebSocket 网络对战完成 + ECS 更新
+## Current Session (2026-06-14) — Bug #25 + #26 修复
+
+### Bug #25 (P0): GWT preloader 资源路径错误 ✅
+
+**根因:** libGDX GWT preloader 运行时从 `parentOf(moduleUrl) + 'assets/'` 加载 `assets.txt`。部署目录 `docs/fyren/` 对应的路径是 `docs/assets/`，但该目录不存在，导致 preloader 404 → 字体未加载 → `BitmapFont(null)` → NPE 崩溃。
+
+**修复:**
+- 新建 `docs/assets/` — `assets.txt` + `lsans-15.fnt` + `lsans-15.png` + `version.txt`
+- 更新 `gwt-compile.bat` — 编译后复制资源到 `target/gwt-out/assets/`（除 `target/gwt-out/fyren/` 之外）
+
+**验证:** 线上 `https://uquc.github.io/Fyren/fyren/` — 全部资源 200，Canvas 960x540 正常渲染。
+
+### Bug #26 (P2): hit-stop 双重 update ✅
+
+**根因:** `hitEffects.update(delta)` 在 hit-stop `if` 分支内调一次，后面无条件又调一次，导致 hit-stop 倒计时速度翻倍、打击感减弱。
+
+**修复 (3 处):**
+- `FyrenGwtLauncher.java` `renderDemo()` — 移除 if 内 `hitEffects.update(delta)`
+- `FyrenGwtLauncher.java` `renderNetwork()` — 同上
+- `GameScreen.java` — 同上（桌面版也有此问题）
+
+### 次要发现
+
+- **音效路径双重前缀:** preloader 查找 `assets/assets/sounds/*.wav`（应为 `assets/sounds/*.wav`）— 音效文件在 GWT 原本就静默降级，暂不影响游戏。
+- `assets/sounds/` 目录已存在于 `D:/develp/Fyren/assets/sounds/`，由 libGDX SoundGenerator 生成。
+
+**Commit:** `8eb70d5` — 已推送到 GitHub + Gitee
+
+## Historical Session (2026-06-13) — GWT WebSocket 网络对战完成 + ECS 更新
 
 ### GWT WebSocket — P1-4 完成 ✅
 
