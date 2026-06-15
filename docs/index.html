@@ -455,7 +455,7 @@ body {
     thread = <span class="kw">new</span> Thread(() -&gt; {
         <span class="kw">long</span> startMs = System.currentTimeMillis();
         <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">10</span> &amp;&amp; !ready.get(); i++) {     <span class="cm">// PING ×10</span>
-            P2pPacket ping = <span class="kw">new</span> P2pPacket(seq++, <span class="str">P2P_PING</span>);
+            P2pPacket ping = <span class="kw">new</span> P2pPacket(seq++, P2P_PING);
             udpClient.sendRaw(ping.serialize(), opponentAddr);
             Thread.sleep(<span class="nm">20</span>);                             <span class="cm">// 20ms 间隔</span>
         }
