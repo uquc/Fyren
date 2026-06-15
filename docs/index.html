@@ -189,6 +189,39 @@ body {
 @media (max-width: 700px) {
     .arch-decisions { grid-template-columns: 1fr; }
 }
+
+/* === DEEP DIVE === */
+.dd-section { max-width: 1000px; margin: 0 auto; padding: 0 20px 60px; }
+
+.dd-card {
+    background: #141420; border: 1px solid #1e1e30; border-radius: 8px;
+    padding: 28px 28px 20px; margin-bottom: 20px;
+    transition: border-color 0.3s;
+}
+.dd-card:hover { border-color: #4ecdc4; }
+.dd-card h3 { color: #4ecdc4; font-size: 1.05em; letter-spacing: 2px; margin-bottom: 2px; }
+.dd-card .dd-summary { color: #888; font-size: 0.85em; margin-bottom: 16px; }
+.dd-card .dd-bullets { color: #777; font-size: 0.82em; line-height: 1.8; margin-bottom: 20px; padding-left: 16px; }
+.dd-card .dd-bullets li { margin-bottom: 2px; }
+.dd-card .dd-bullets li::marker { color: #4ecdc4; }
+
+.dd-code {
+    background: #0d0d14; border: 1px solid #1e1e30; border-radius: 6px;
+    padding: 16px 20px; overflow-x: auto; font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.78em; line-height: 1.55; color: #ccc; white-space: pre;
+    position: relative;
+}
+.dd-code::before {
+    content: 'Java'; position: absolute; top: -1px; right: 16px;
+    background: #1e1e30; color: #555; font-size: 0.7em; padding: 2px 8px;
+    border-radius: 0 0 4px 4px; font-family: 'Segoe UI', sans-serif; letter-spacing: 1px;
+}
+/* syntax highlighting */
+.dd-code .kw { color: #4ecdc4; }
+.dd-code .str { color: #ff6b35; }
+.dd-code .cm { color: #555; font-style: italic; }
+.dd-code .nm { color: #a29bfe; }
+.dd-code .fn { color: #ffeaa7; }
 </style>
 </head>
 <body>
@@ -369,6 +402,128 @@ body {
             <p>UDP 客户端和 WebSocket 浏览器共享同一个 MatchManager 实例。MatchResponseSender 接口解耦传输层。</p>
         </div>
     </div>
+</section>
+
+<!-- DEEP DIVE -->
+<div class="section-divider"></div>
+<h2 class="section-title">&#x2699; <span>轮 子</span></h2>
+
+<section class="dd-section">
+
+    <!-- Card 1: Frame Sync -->
+    <div class="dd-card">
+        <h3>帧同步引擎</h3>
+        <p class="dd-summary">乐观帧锁定 + GGPO 式回滚 — 格斗游戏网络同步的核心</p>
+        <ul class="dd-bullets">
+            <li>60fps 固定步长锁步，任意一方输入未到达时预测执行</li>
+            <li>每次远程输入到达时逐帧校验预测是否匹配，不匹配则回滚重演</li>
+            <li>GameStateSnapshot 每 10 帧保存完整状态快照，最大回滚 10 帧</li>
+            <li>gatherInputs() 按 playerId 排序，保证确定性模拟</li>
+        </ul>
+        <div class="dd-code">// checkAndRollback() — 逐帧校验远程输入，预测错误触发回滚
+<span class="kw">private void</span> <span class="fn">checkAndRollback</span>(<span class="kw">int</span> currentFrame) {
+    <span class="kw">for</span> (InputBuffer remoteBuf : remoteInputBuffers.values()) {
+        <span class="kw">while</span> (confirmedFrame &lt; remoteBuf.getCurrentFrame()) {
+            <span class="kw">int</span> checkFrame = confirmedFrame + <span class="nm">1</span>;
+            InputCommand confirmed = remoteBuf.getInput(checkFrame);
+            <span class="kw">if</span> (confirmed == <span class="kw">null</span>) <span class="kw">break</span>; <span class="cm">// 该帧尚未到达</span>
+
+            InputCommand predicted = lastKnownInputs.get(remotePlayerId);
+            <span class="kw">if</span> (predicted != <span class="kw">null</span> &amp;&amp; !predicted.equals(confirmed)) {
+                <span class="kw">int</span> rollback = Math.min(currentFrame - confirmedFrame, <span class="nm">10</span>);
+                <span class="fn">rollback</span>(currentFrame - rollback); <span class="cm">// 回滚 + 重演</span>
+                <span class="kw">return</span>;
+            }
+            confirmedFrame++;
+        }
+    }
+}</div>
+    </div>
+
+    <!-- Card 2: P2P -->
+    <div class="dd-card">
+        <h3>P2P UDP 打洞</h3>
+        <p class="dd-summary">纯 Java NAT 穿透，零外部 STUN/TURN 依赖</p>
+        <ul class="dd-bullets">
+            <li>匹配成功后双方同时向对方公网地址发送 P2P_PING ×10（20ms 间隔）</li>
+            <li>利用路由器建立 NAT 映射表条目，收到对方 P2P_PING 后回复 P2P_PONG</li>
+            <li>2 秒超时 → 自动降级为服务器 UDP 中继，对称 NAT 下无缝回退</li>
+            <li>打洞成功后 P2P 直连流量完全绕开服务器，零延迟中继开销</li>
+        </ul>
+        <div class="dd-code">// P2PHandshake — 异步打洞，超时自动降级中继
+<span class="kw">public void</span> <span class="fn">start</span>(InetSocketAddress opponentAddr) {
+    thread = <span class="kw">new</span> Thread(() -&gt; {
+        <span class="kw">long</span> startMs = System.currentTimeMillis();
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">10</span> &amp;&amp; !ready.get(); i++) {     <span class="cm">// PING ×10</span>
+            P2pPacket ping = <span class="kw">new</span> P2pPacket(seq++, <span class="str">P2P_PING</span>);
+            udpClient.sendRaw(ping.serialize(), opponentAddr);
+            Thread.sleep(<span class="nm">20</span>);                             <span class="cm">// 20ms 间隔</span>
+        }
+        <span class="kw">long</span> deadline = startMs + <span class="nm">2000</span>;               <span class="cm">// 2s 总超时</span>
+        <span class="kw">while</span> (System.currentTimeMillis() &lt; deadline &amp;&amp; !ready.get()) {
+            Thread.sleep(<span class="nm">50</span>);                             <span class="cm">// 等待 P2P_PONG</span>
+        }
+        <span class="kw">if</span> (ready.get()) System.out.println(<span class="str">"打洞成功! 直连"</span>);
+        <span class="kw">else</span>             System.out.println(<span class="str">"打洞超时，降级中继"</span>);
+    }, <span class="str">"P2P-handshake"</span>);
+    thread.setDaemon(<span class="kw">true</span>); thread.start();
+}</div>
+    </div>
+
+    <!-- Card 3: Hit Feedback -->
+    <div class="dd-card">
+        <h3>打击感五件套</h3>
+        <p class="dd-summary">五层反馈叠加 — 命中帧冻结、屏幕震动、粒子火花、受击闪烁、运动残影</p>
+        <ul class="dd-bullets">
+            <li>Hit-stop 停帧: 命中后冻结渲染，轻击 3 帧 (~0.05s)、重击 6 帧 (~0.1s)，伤害 &gt; 15 判定重击</li>
+            <li>屏幕震动: CameraController 偏移叠加衰减正弦波，震幅与伤害正相关</li>
+            <li>命中火花: ParticleEffects 在碰撞点生成橙/白色粒子，向两侧飞散并 fade out</li>
+            <li>受击闪烁: SpriteRenderer 检测 Fighter.isHitFlag() → 两帧白色覆盖后恢复</li>
+            <li>运动残影: MotionTrailEffect 采样角色过去 4 帧位置，半透明重绘产生残影拖尾</li>
+        </ul>
+        <div class="dd-code">// HitEffects — 命中停帧时长基于伤害量
+<span class="kw">public class</span> HitEffects {
+    <span class="kw">private float</span> hitStopRemaining = <span class="nm">0f</span>;
+    <span class="kw">private static final float</span> HIT_STOP_LIGHT = <span class="nm">0.05f</span>;  <span class="cm">// 3 帧</span>
+    <span class="kw">private static final float</span> HIT_STOP_HEAVY = <span class="nm">0.1f</span>;   <span class="cm">// 6 帧</span>
+
+    <span class="kw">public void</span> <span class="fn">onHit</span>(Fighter victim, Fighter attacker, <span class="kw">int</span> damage) {
+        hitStopRemaining = Math.max(hitStopRemaining,
+            damage &gt; <span class="nm">15</span> ? HIT_STOP_HEAVY : HIT_STOP_LIGHT);
+    }
+
+    <span class="kw">public boolean</span> <span class="fn">isInHitStop</span>() {
+        <span class="kw">return</span> hitStopRemaining &gt; <span class="nm">0</span>;  <span class="cm">// 调用方应跳过 GameWorld.update()</span>
+    }
+}</div>
+    </div>
+
+    <!-- Card 4: Cross-platform -->
+    <div class="dd-card">
+        <h3>跨平台联机</h3>
+        <p class="dd-summary">浏览器 WebSocket + 桌面 UDP 同池匹配，统一 MMR</p>
+        <ul class="dd-bullets">
+            <li>MatchManager 通过 MatchResponseSender 接口解耦传输层——不关心客户端是 UDP 还是 WebSocket</li>
+            <li>WsGameServer 监听 :9878，接收浏览器 GWT 客户端（JSNI WebSocket, 二进制帧）</li>
+            <li>GwtFrameSyncManager 主线程驱动帧循环，无多线程/锁，适配浏览器单线程模型</li>
+            <li>桌面客户端 UDP+P2P，浏览器客户端始终服务器中继——两者共享同一 Matchmaker 队列</li>
+        </ul>
+        <div class="dd-code"><span class="cm">// MatchManager — 传输层无关的匹配响应接口</span>
+<span class="kw">public interface</span> MatchResponseSender {
+    <span class="kw">void</span> <span class="fn">sendMatchResponse</span>(<span class="kw">int</span> playerId, MatchResponsePacket response,
+                           String opponentAddress, <span class="kw">int</span> opponentPort);
+}
+
+<span class="cm">// GameServer 同时注入 UDP 和 WebSocket 两种 Sender</span>
+matchManager.setMatchResponseSender((playerId, resp, addr, port) -&gt; {
+    <span class="kw">if</span> (wsSessions.containsKey(playerId)) {
+        wsGameServer.sendMatchResponse(playerId, resp);     <span class="cm">// WebSocket 客户端</span>
+    } <span class="kw">else</span> {
+        udpServer.sendMatchResponse(playerId, resp, addr);  <span class="cm">// UDP 客户端</span>
+    }
+});</div>
+    </div>
+
 </section>
 
 <script>
