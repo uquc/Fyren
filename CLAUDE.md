@@ -253,42 +253,44 @@ Swing mode (legacy, retained):
   Swing Timer → GamePanel.repaint() → StickFigureRenderer
 ```
 
-## Current Session (2026-06-15) — GitHub Pages 全面改版 + ECS 恢复 + Release v1.2
+## Current Session (2026-06-16) — 美术背景方向 + CCGS Agent 集成
 
-**成果:** `docs/index.html` 从基础产品页重写为 8 板块技术 Portfolio 落地页。
+### CCGS (Claude-Code-Game-Studios) 美术/音频 Agent 引入
 
-### 页面结构（从上到下）
-| # | 板块 | 说明 |
-|---|------|------|
-| 1 | Hero | 标题 + 副标题 + badge |
-| 2 | 状态面板 | ECS 实时状态（优雅降级离线） |
-| 3 | Game Demo | WebGL iframe + 操作说明 |
-| 4 | 角色系统 | KAGE 影 / TAKESHI 武 / GOU 刚，属性条 |
-| 5 | 技术架构 | CSS 拓扑图 + 4 关键设计决策 |
-| 6 | 轮子拆解 | 4 模块卡片 + 语法高亮代码片段 |
-| 7 | 下载 | 合规声明 → GitHub Release v1.2 |
-| 8 | Footer | 版权 + 7 技术栈 badges |
+从 [Donchitos/Claude-Code-Game-Studios](https://github.com/Donchitos/Claude-Code-Game-Studios) 引入 4 个 agent 文件到 `.claude/agents/`：
 
-**视觉:** 暗底 `#0a0a0f` + 双强调色（橙 `#ff6b35` 游戏 / 青 `#4ecdc4` 技术），纯 CSS 零图片依赖。
+| Agent | 职责 | 模型 |
+|-------|------|------|
+| `art-director` | 视觉识别、风格指南、调色板、UI/UX 视觉设计 | Sonnet |
+| `audio-director` | 声音识别、音乐方向、音频系统架构、混音策略 | Sonnet |
+| `sound-designer` | SFX 规格表、音频事件列表、变体规划 | Sonnet |
+| `technical-artist` | 着色器、VFX、渲染优化、美术资源管线 | Sonnet |
 
-### ECS 恢复 (2026-06-15)
-- 服务器一直在运行（watchdog 保活），端口 9878 WS + 443 TCP 正常
-- 8080 HTTP 端口：安全组 + 防火墙规则均正常，但大量 CLOSE_WAIT 堆积导致连接拒绝
-- 重启 Java 进程解决，status API 恢复正常响应
+**注意:** Agent 文件需会话重启后才能在 `Agent` 工具中按名称调用（当前 session 中途创建的不在可用列表中）。
 
-### GitHub Release v1.2
-- `https://github.com/uquc/Fyren/releases/tag/v1.2` — 附带 fat JAR (18MB)
-- 下载按钮 → 合规声明 → 跳转 Release 页面
+### P1-2 背景美术 — 方向已确定
 
-### 会话语录
+**设计决策:**
+- **风格:** 像素风 (pixel art)
+- **主题:** 东方竹林/山水
+- **素材来源:** [Ninja Adventure](https://pixel-boy.itch.io/ninja-adventure-asset-pack)（CC0 忍者主题 16×16 像素套装）
+  - itch.io 在当前网络环境下被墙（`pixel-boy.itch.io:443` 连接超时）
+  - GitHub 镜像: `https://github.com/pixel-boy/NinjaAdventure`（Godot 示例项目，含 tileset 资源）
+  - 备选: CraftPix [横向像素背景](https://craftpix.net/sets/horizontal-pixel-art-backgrounds-collection/)
+- **美术要求:** 能用就行，不追求高质量
+
+### P1 状态更新 (2026-06-16)
+
+**重新评估 P1 三项:**
+| # | 项 | 状态 | 说明 |
+|---|----|------|------|
+| 1 | 主菜单/UI | ✅ **已完成** | 6 个 Screen 全部实现（TitleScreen/CharacterSelectScreen/MatchingScreen/VsSplashScreen/ResultScreen + FyrenGame 状态机+fade 转场）。CLAUDE.md 之前记录的 P1 待办已过时。 |
+| 2 | 背景/视觉 | 🔄 方向确定 | 像素竹林/山水，待获取素材+实现 |
+| 3 | 训练模式 | ❌ 未开始 | TitleScreen 有 "TRAINING MODE" 入口但显示 "COMING SOON" |
+
+### 会话语录（本会话，尚未 commit）
 ```
-0a3a8fe verify: GitHub Pages redesign — all 8 sections live at uquc.github.io/Fyren
-eb558d8 feat: add Download section + Footer with tech badges
-3d528d3 feat: add Deep Dive section — 4 module cards with syntax-highlighted code
-c644826 feat: add Architecture section — CSS topology diagram + design decisions
-5d12982 feat: add Characters section -- 3 fighter cards with stats
-3267687 feat: landing page shell — Hero + Status + Demo sections
-781b66d docs: GitHub Pages redesign spec — tech portfolio landing page
+(会话进行中 — 背景美术方向确定 + CCGS agent 集成)
 ```
 
 ## Historical Session (2026-06-14) — Bug #25 + #26 修复
@@ -422,11 +424,11 @@ de17cf1 docs: P2P UDP hole punch + audio system design spec
 7ede323 fix: activeMatches/totalMatches counters + game-over detection + ResultPacket reporting
 ```
 
-## P1 待办（优先级顺序）
+## P1 待办（优先级顺序，更新于 2026-06-16）
 
-1. **主菜单/UI** — 标题画面→选角色→匹配→结算→循环（scene2d.ui 或自定义）
-2. **背景/视觉美术资源** — 至少一个格斗场景背景
-3. **训练模式** — 帧数据显示 + 无对手自由练习
+1. ~~**主菜单/UI**~~ ✅ 已完成 — 6 个 Screen + FyrenGame 状态机 + fade 转场 (AbstractScreen/TitleScreen/CharacterSelectScreen/MatchingScreen/VsSplashScreen/ResultScreen)
+2. **背景/视觉美术资源** — 像素风竹林/山水，素材源 Ninja Adventure (CC0)，待下载+实现
+3. **训练模式** — 帧数据显示 + 无对手自由练习（TitleScreen 有入口但显示 COMING SOON）
 4. ~~**GWT WebSocket 网络对战**~~ ✅ 已完成 (2026-06-13)
 
 **ECS 部署提醒：** 新 JAR 需部署到 `115.29.230.57` 以启用 P2P 和音效。启动命令：

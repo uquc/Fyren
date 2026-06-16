@@ -39,3 +39,6 @@ build/
 .DS_Store
 dependency-reduced-pom.xml
 gwt-assets/
+
+### Superpowers (brainstorming mockups) ###
+.superpowers/
