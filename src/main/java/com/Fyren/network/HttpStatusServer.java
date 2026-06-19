@@ -41,8 +41,12 @@ public class HttpStatusServer {
         server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/status", new StatusHandler());
         server.createContext("/health", exchange -> {
-            addCors(exchange);
-            exchange.sendResponseHeaders(200, -1);
+            try {
+                addCors(exchange);
+                exchange.sendResponseHeaders(200, -1);
+            } finally {
+                exchange.close();
+            }
         });
         server.createContext("/leaderboard", new LeaderboardHandler());
         server.setExecutor(null);
@@ -75,37 +79,41 @@ public class HttpStatusServer {
     private class StatusHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            // 处理 CORS 预检请求
-            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+            try {
+                // 处理 CORS 预检请求
+                if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                    addCors(exchange);
+                    exchange.sendResponseHeaders(204, -1);
+                    return;
+                }
+
+                long uptime = Duration.between(startTime, Instant.now()).getSeconds();
+                boolean redisOk = redisService != null && redisService.isAvailable();
+
+                String json = String.format(
+                    "{\"online\":true," +
+                    "\"uptimeSeconds\":%d," +
+                    "\"onlinePlayers\":%d," +
+                    "\"activeMatches\":%d," +
+                    "\"totalMatches\":%d," +
+                    "\"redisConnected\":%b," +
+                    "\"version\":\"1.1\"}",
+                    uptime,
+                    onlinePlayers.get(),
+                    activeMatches.get(),
+                    totalMatches.get(),
+                    redisOk
+                );
+
+                byte[] body = json.getBytes(StandardCharsets.UTF_8);
                 addCors(exchange);
-                exchange.sendResponseHeaders(204, -1);
-                return;
-            }
-
-            long uptime = Duration.between(startTime, Instant.now()).getSeconds();
-            boolean redisOk = redisService != null && redisService.isAvailable();
-
-            String json = String.format(
-                "{\"online\":true," +
-                "\"uptimeSeconds\":%d," +
-                "\"onlinePlayers\":%d," +
-                "\"activeMatches\":%d," +
-                "\"totalMatches\":%d," +
-                "\"redisConnected\":%b," +
-                "\"version\":\"1.1\"}",
-                uptime,
-                onlinePlayers.get(),
-                activeMatches.get(),
-                totalMatches.get(),
-                redisOk
-            );
-
-            byte[] body = json.getBytes(StandardCharsets.UTF_8);
-            addCors(exchange);
-            exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
-            exchange.sendResponseHeaders(200, body.length);
-            try (OutputStream os = exchange.getResponseBody()) {
-                os.write(body);
+                exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+                exchange.sendResponseHeaders(200, body.length);
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(body);
+                }
+            } finally {
+                exchange.close();
             }
         }
     }
@@ -113,39 +121,43 @@ public class HttpStatusServer {
     private class LeaderboardHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
-                addCors(exchange);
-                exchange.sendResponseHeaders(204, -1);
-                return;
-            }
+            try {
+                if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                    addCors(exchange);
+                    exchange.sendResponseHeaders(204, -1);
+                    return;
+                }
 
-            if (redisService == null || !redisService.isAvailable()) {
-                String body = "{\"error\":\"Redis 不可用，无法获取排行榜\"}";
-                byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+                if (redisService == null || !redisService.isAvailable()) {
+                    String body = "{\"error\":\"Redis 不可用，无法获取排行榜\"}";
+                    byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+                    addCors(exchange);
+                    exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+                    exchange.sendResponseHeaders(503, bytes.length);
+                    try (OutputStream os = exchange.getResponseBody()) { os.write(bytes); }
+                    return;
+                }
+
+                List<Map.Entry<String, Integer>> leaderboard = redisService.getLeaderboard(100);
+                StringBuilder sb = new StringBuilder("[");
+                for (int i = 0; i < leaderboard.size(); i++) {
+                    if (i > 0) sb.append(",");
+                    Map.Entry<String, Integer> entry = leaderboard.get(i);
+                    sb.append(String.format("{\"rank\":%d,\"username\":\"%s\",\"mmr\":%d}",
+                            i + 1,
+                            entry.getKey().replace("\\", "\\\\").replace("\"", "\\\""),
+                            entry.getValue()));
+                }
+                sb.append("]");
+
+                byte[] body = sb.toString().getBytes(StandardCharsets.UTF_8);
                 addCors(exchange);
                 exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
-                exchange.sendResponseHeaders(503, bytes.length);
-                try (OutputStream os = exchange.getResponseBody()) { os.write(bytes); }
-                return;
+                exchange.sendResponseHeaders(200, body.length);
+                try (OutputStream os = exchange.getResponseBody()) { os.write(body); }
+            } finally {
+                exchange.close();
             }
-
-            List<Map.Entry<String, Integer>> leaderboard = redisService.getLeaderboard(100);
-            StringBuilder sb = new StringBuilder("[");
-            for (int i = 0; i < leaderboard.size(); i++) {
-                if (i > 0) sb.append(",");
-                Map.Entry<String, Integer> entry = leaderboard.get(i);
-                sb.append(String.format("{\"rank\":%d,\"username\":\"%s\",\"mmr\":%d}",
-                        i + 1,
-                        entry.getKey().replace("\\", "\\\\").replace("\"", "\\\""),
-                        entry.getValue()));
-            }
-            sb.append("]");
-
-            byte[] body = sb.toString().getBytes(StandardCharsets.UTF_8);
-            addCors(exchange);
-            exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
-            exchange.sendResponseHeaders(200, body.length);
-            try (OutputStream os = exchange.getResponseBody()) { os.write(body); }
         }
     }
 

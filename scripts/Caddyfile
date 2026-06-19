@@ -26,6 +26,11 @@
         respond "Forbidden" 403
     }
 
+    # WebSocket proxy for browser network mode
+    handle /ws* {
+        reverse_proxy 127.0.0.1:9878
+    }
+
     # Reverse proxy to Java HTTP status server
     handle {
         reverse_proxy 127.0.0.1:8080

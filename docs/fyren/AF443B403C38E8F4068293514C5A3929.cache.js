@@ -3,7 +3,7 @@ var __gwtModuleFunction = $wnd.fyren;
 var $sendStats = __gwtModuleFunction.__sendStats;
 $sendStats('moduleStartup', 'moduleEvalStart');
 var $gwt_version = "2.8.2";
-var $strongName = '9F6EEBE7BE6150DA339CD85D849F1D67';
+var $strongName = 'AF443B403C38E8F4068293514C5A3929';
 var $gwt = {};
 var $doc = $wnd.document;
 var $moduleName, $moduleBase;
@@ -1624,9 +1624,10 @@ _.playerY = 0;
 _.stateTimestamp = 0;
 var Lcom_Fyren_network_StatePacket_2_classLit = createForClass('com.Fyren.network', 'StatePacket', 939, Lcom_Fyren_network_Packet_2_classLit);
 function $connect(this$static){
-  var wsUrl;
+  var protocol, wsUrl;
   this$static.state_0 = 1;
-  wsUrl = 'ws://' + this$static.serverHost + ':' + this$static.serverWsPort;
+  protocol = $wnd.location.protocol;
+  $equals_7('https:', protocol)?(wsUrl = 'wss://' + this$static.serverHost + '.nip.io/ws'):(wsUrl = 'ws://' + this$static.serverHost + ':' + this$static.serverWsPort);
   this$static.webSocket = new GwtWebSocket(wsUrl, new GwtNetworkClient$1(this$static));
   $connect_0(this$static.webSocket);
 }
@@ -2697,10 +2698,7 @@ function $renderDemo(this$static, delta){
   p2 = this$static.gameWorld.player2;
   hp1Before = p1.health;
   hp2Before = p2.health;
-  if (this$static.hitEffects.hitStopRemaining > 0) {
-    $update_2(this$static.hitEffects, delta);
-  }
-   else {
+  if (!(this$static.hitEffects.hitStopRemaining > 0)) {
     $update_0(this$static.gameWorld, inputs, this$static.frameNumber);
     ++this$static.frameNumber;
   }
@@ -2746,7 +2744,7 @@ function $renderNetwork(this$static, delta){
   p2 = this$static.gameWorld.player2;
   hp1Before = p1.health;
   hp2Before = p2.health;
-  this$static.hitEffects.hitStopRemaining > 0?$update_2(this$static.hitEffects, delta):++this$static.frameNumber;
+  this$static.hitEffects.hitStopRemaining > 0 || ++this$static.frameNumber;
   dmg1 = hp1Before - p1.health;
   dmg2 = hp2Before - p2.health;
   if (dmg1 > 0) {

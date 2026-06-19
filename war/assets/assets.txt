@@ -1,4 +1,6 @@
 d:assets:assets:0:application/unknown:1
+t:lsans-15.fnt:lsans-15-5143ae9583bc43b1084f98062e054ae8.fnt:17711:application/unknown:1
+i:lsans-15.png:lsans-15-8e00ff5b9dd15a3c18c1eb75f68c695a.png:10270:image/png:1
 t:version.txt:version-19d372bfef9964e7596bd600103e3c0f.txt:10:text/plain:1
 t:com/badlogic/gdx/graphics/g3d/particles/particles.fragment.glsl:particles.fragment-b90524761fdf09b0a836056d590c30b8.glsl:820:application/unknown:1
 t:com/badlogic/gdx/graphics/g3d/particles/particles.vertex.glsl:particles.vertex-f25b8b2fae10b9bfa09bfdd484923148.glsl:2886:application/unknown:1

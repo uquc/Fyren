@@ -7,6 +7,7 @@ import com.Fyren.network.*;
 import com.Fyren.sync.GwtFrameSyncManager;
 import com.Fyren.sync.InputCommand;
 import com.Fyren.util.InputCodec;
+import com.google.gwt.user.client.Window;
 
 /**
  * GWT 兼容的网络客户端 — WebSocket 传输层 + GameClient 生命周期。
@@ -72,7 +73,14 @@ public class GwtNetworkClient {
     public void connect() {
         setState(ClientState.CONNECTING);
 
-        String wsUrl = "ws://" + serverHost + ":" + serverWsPort;
+        // HTTPS 页面必须用 WSS，走 Caddy Nip.io TLS 代理（/ws → localhost:9878）
+	        String wsUrl;
+	        String protocol = Window.Location.getProtocol();
+	        if ("https:".equals(protocol)) {
+	            wsUrl = "wss://" + serverHost + ".nip.io/ws";
+	        } else {
+	            wsUrl = "ws://" + serverHost + ":" + serverWsPort;
+	        }
         webSocket = new GwtWebSocket(wsUrl, new GwtWebSocket.Callback() {
             @Override
             public void onOpen() {
