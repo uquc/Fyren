@@ -41,10 +41,11 @@ cd docker && docker compose up -d
 mvn dependency:sources -DincludeArtifactIds=gdx-backend-gwt,gdx -q
 mvn compile -q && ./gwt-compile.bat   # output: target/gwt-out/
 
-# jpackage EXE
-mvn package -q
-jpackage --input target --name Fyren --main-jar Fyren-1.0-SNAPSHOT.jar --main-class com.Fyren.render.libgdx.FyrenLauncher --type exe --win-console --java-options "-XstartOnFirstThread"
-```
+	# Windows EXE 分发 (jpackage app-image → zip，无需 WiX)
+	mvn package -q
+	jpackage --input target/pkg-input --name Fyren --main-jar Fyren-1.0-SNAPSHOT.jar --main-class com.Fyren.render.libgdx.FyrenLauncher --type app-image --java-options "-XstartOnFirstThread" --dest target/pkg-out
+	# 注意: --type exe 需要 WiX toolset (light.exe/candle.exe) 且在当前环境不可用
+	# 最终分发: zip target/pkg-out/Fyren/ → Fyren-windows-x64.zip (~91MB, 含 JRE)
 
 Dependencies: Lombok (provided), JUnit Jupiter 5.10.2 (test), libGDX 1.12.1 (gdx, gdx-backend-lwjgl3, gdx-platform:natives-desktop), jjwt 0.12.5 (api/impl/jackson), Jedis 5.1.2, jBCrypt 0.4, java-websocket 1.5.6.
 
@@ -173,10 +174,11 @@ FyrenLauncher (main, CLI) → FyrenGame (ApplicationListener)
 - Swing render files (`SwingGameWindow`, `DemoGameWindow`, `GamePanel`, `StickFigureRenderer`, `KeyInputHandler`) are superseded by libGDX layer but retained for backward compatibility.
 - No background art (black background with procedural ground/grid lines).
 - `float` coordinates — fine for single-platform (Java strictfp), not cross-platform deterministic.
-- GWT/WebGL target compiles to JS (5 permutations, ~6.8MB each), served via `docs/fyren/index.html`. Requires manual `mvn dependency:sources` for gdx/gdx-backend-gwt before first build. Network mode (`?mode=network`) works via WebSocket — browser always server-relay.
+- GWT/WebGL target compiles to JS (5 permutations, ~6.8MB each), served via `docs/fyren/index.html`. Requires manual `mvn dependency:sources` for gdx/gdx-backend-gwt before first build. Network mode (`?mode=network`) works via WebSocket — browser WSS via Caddy nip.io TLS proxy (`wss://<ip>.nip.io/ws` → localhost:9878).
 - **GWT preloader assets path:** Preloader looks for assets at `docs/assets/` (parent of `docs/fyren/`). Must keep `docs/assets/assets.txt` + font files in sync with compiled JS expectations. Updated `gwt-compile.bat` to auto-copy assets to both locations.
 - **GWT sound path:** Preloader looks for sounds at `assets/assets/sounds/` (double prefix) — GWT audio already silently degrades, so harmless.
 - ECS Redis 未连接（内存模式，重启丢失用户数据）。
+- WiX toolset 未安装 — jpackage 只能用 `--type app-image`（免安装目录），无法生成 EXE 安装包。分发方案: zip 压缩包 (~91MB, 含 JRE)。
 - 无跳跃设计。
 
 ## ECS Deployment (2026-06-13 updated)
@@ -201,7 +203,7 @@ FyrenLauncher (main, CLI) → FyrenGame (ApplicationListener)
 **Running Services:**
 | Service | Port | Status |
 |---------|------|--------|
-| Caddy HTTPS proxy | 443 | ✅ Let's Encrypt, `115.29.230.57.nip.io` |
+| Caddy HTTPS proxy | 443 | ✅ Let's Encrypt, `115.29.230.57.nip.io`, /ws → 9878 WSS |
 | HTTP status API | 8080 | ✅ |
 | Auth API | 8081 | ✅ |
 | Game server (UDP) | 9876 | ✅ |
@@ -253,46 +255,62 @@ Swing mode (legacy, retained):
   Swing Timer → GamePanel.repaint() → StickFigureRenderer
 ```
 
-## Current Session (2026-06-16) — 美术背景方向 + CCGS Agent 集成
+## Current Session (2026-06-19) — WSS 联网修复 + EXE 分发 + ECS 恢复
 
-### CCGS (Claude-Code-Game-Studios) 美术/音频 Agent 引入
+### ECS 宕机诊断 & 恢复
 
-从 [Donchitos/Claude-Code-Game-Studios](https://github.com/Donchitos/Claude-Code-Game-Studios) 引入 4 个 agent 文件到 `.claude/agents/`：
+**根因:** `HttpStatusServer` 所有 handler 未调 `exchange.close()`，导致 CLOSE_WAIT 堆积（50+ 连接）。TCP backlog 被占满后 8080 端口拒绝所有新连接。Java 进程最终崩溃。
 
-| Agent | 职责 | 模型 |
-|-------|------|------|
-| `art-director` | 视觉识别、风格指南、调色板、UI/UX 视觉设计 | Sonnet |
-| `audio-director` | 声音识别、音乐方向、音频系统架构、混音策略 | Sonnet |
-| `sound-designer` | SFX 规格表、音频事件列表、变体规划 | Sonnet |
-| `technical-artist` | 着色器、VFX、渲染优化、美术资源管线 | Sonnet |
+**修复:**
+- `HttpStatusServer.java` — StatusHandler / LeaderboardHandler / /health lambda 全部包裹 `try { ... } finally { exchange.close(); }`
+- ECS 上 Java 进程已崩溃（`Get-Process java` 找不到），手动重启恢复
 
-**注意:** Agent 文件需会话重启后才能在 `Agent` 工具中按名称调用（当前 session 中途创建的不在可用列表中）。
+### 联网对战 WSS 修复
 
-### P1-2 背景美术 — 方向已确定
+**问题:** GitHub Pages 强制 HTTPS，GWT 客户端用 `ws://` 直连被浏览器 Mixed Content 阻断。
 
-**设计决策:**
-- **风格:** 像素风 (pixel art)
-- **主题:** 东方竹林/山水
-- **素材来源:** [Ninja Adventure](https://pixel-boy.itch.io/ninja-adventure-asset-pack)（CC0 忍者主题 16×16 像素套装）
-  - itch.io 在当前网络环境下被墙（`pixel-boy.itch.io:443` 连接超时）
-  - GitHub 镜像: `https://github.com/pixel-boy/NinjaAdventure`（Godot 示例项目，含 tileset 资源）
-  - 备选: CraftPix [横向像素背景](https://craftpix.net/sets/horizontal-pixel-art-backgrounds-collection/)
-- **美术要求:** 能用就行，不追求高质量
+**修复 (3 处):**
+| 文件 | 改动 |
+|------|------|
+| `GwtNetworkClient.java` | `Window.Location.getProtocol()` 检测 HTTPS → 自动用 `wss://<ip>.nip.io/ws` |
+| `scripts/Caddyfile` | 新增 `handle /ws* { reverse_proxy 127.0.0.1:9878 }` |
+| ECS Caddyfile | 重写（原文件被意外清空），reload Caddy |
 
-### P1 状态更新 (2026-06-16)
+**WSS 链路:** `Browser(HTTPS) → WSS → Caddy:443/ws → localhost:9878(WsGameServer)`
 
-**重新评估 P1 三项:**
-| # | 项 | 状态 | 说明 |
-|---|----|------|------|
-| 1 | 主菜单/UI | ✅ **已完成** | 6 个 Screen 全部实现（TitleScreen/CharacterSelectScreen/MatchingScreen/VsSplashScreen/ResultScreen + FyrenGame 状态机+fade 转场）。CLAUDE.md 之前记录的 P1 待办已过时。 |
-| 2 | 背景/视觉 | 🔄 方向确定 | 像素竹林/山水，待获取素材+实现 |
-| 3 | 训练模式 | ❌ 未开始 | TitleScreen 有 "TRAINING MODE" 入口但显示 "COMING SOON" |
+**验证:** 隔离浏览器上下文实测，2 条 WSS 连接 ESTABLISHED。
 
-### 会话语录（本会话，尚未 commit）
+### Windows EXE 分发
+
+**构建:** `jpackage --type app-image`（WiX 不可用，无法生成安装包）→ zip 分发
+- 输入: `target/pkg-input/Fyren-1.0-SNAPSHOT.jar`
+- 输出: `target/pkg-out/Fyren/` (215MB, 含 GraalVM JRE)
+- Zip: `Fyren-windows-x64.zip` (91MB)
+
+**发布:** `gh release upload v1.2` → GitHub Release Assets
+
+**网页:** `docs/index.html` 下载按钮改为 "下载 Windows 版 (EXE · 91MB)"，点确认后直链 zip
+
+### GWT 重编译
+
+- 5 permutations 编译通过 (~90s)
+- 旧 cache.js 文件清理（`docs/fyren/` 下 5 个 Jun-13 文件 → 5 个 Jun-19 文件）
+- `docs/assets/` + `docs/fyren/` 同步更新
+
+### 4 项检查最终状态
+
+| # | 检查项 | 状态 |
+|---|--------|------|
+| 1 | WebGL Demo | ✅ 正常 |
+| 2 | 联网对战 (?mode=network) | ✅ WSS 已修复 |
+| 3 | GitHub Release v1.2 下载 | ✅ JAR + EXE zip |
+| 4 | ECS 服务器状态面板 | ✅ 已恢复 |
+
+### 会话语录
 ```
-(会话进行中 — 背景美术方向确定 + CCGS agent 集成)
+4f0feff fix: WSS proxy for browser network mode + HttpStatusServer connection leak
+9d4515b feat: switch download from JAR to EXE (jpackage app-image, 91MB zip)
 ```
-
 ## Historical Session (2026-06-14) — Bug #25 + #26 修复
 
 ### Bug #25 (P0): GWT preloader 资源路径错误 ✅
