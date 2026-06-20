@@ -17,6 +17,7 @@
         <include name="ParticleEffects.java"/>
         <include name="MotionTrailEffect.java"/>
         <include name="AudioManager.java"/>
+        <include name="BackgroundRenderer.java"/>
     </source>
 
     <!-- GWT Launcher (entry-point) -->

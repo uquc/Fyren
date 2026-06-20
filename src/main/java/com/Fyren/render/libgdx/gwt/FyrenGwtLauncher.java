@@ -9,12 +9,13 @@ import com.badlogic.gdx.backends.gwt.preloader.Preloader.PreloaderState;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
-import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.Fyren.game.Fighter;
 import com.Fyren.game.FighterPreset;
 import com.Fyren.game.GameWorld;
 import com.Fyren.render.libgdx.AudioManager;
+import com.Fyren.render.libgdx.BackgroundRenderer;
 import com.Fyren.render.libgdx.CameraController;
 import com.Fyren.render.libgdx.GdxInputHandler;
 import com.Fyren.render.libgdx.HitEffects;
@@ -60,7 +61,7 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
     private AudioManager audioManager;
 
     // --- Background ---
-    private ShapeRenderer bgShapes;
+    private BackgroundRenderer backgroundRenderer;
 
     private int frameNumber;
 
@@ -142,7 +143,7 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
         particleEffects = new ParticleEffects();
         motionTrailEffect = new MotionTrailEffect();
         audioManager = new AudioManager();  // GWT 静默降级
-        bgShapes = new ShapeRenderer();
+        backgroundRenderer = new BackgroundRenderer();
 
         frameNumber = 0;
     }
@@ -186,7 +187,7 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
         particleEffects = new ParticleEffects();
         motionTrailEffect = new MotionTrailEffect();
         audioManager = new AudioManager();
-        bgShapes = new ShapeRenderer();
+        backgroundRenderer = new BackgroundRenderer();
         frameNumber = 0;
     }
 
@@ -248,7 +249,7 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
 
         OrthographicCamera cam = cameraController.getCamera();
 
-        drawBackground(cam);
+        backgroundRenderer.render(cam);
 
         spriteRenderer.begin(cam);
         spriteRenderer.drawFighter(gameWorld.getPlayer1());
@@ -305,7 +306,7 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
 
         ScreenUtils.clear(0.08f, 0.08f, 0.12f, 1f);
         OrthographicCamera cam = cameraController.getCamera();
-        drawBackground(cam);
+        backgroundRenderer.render(cam);
 
         spriteRenderer.begin(cam);
         spriteRenderer.drawFighter(p1);
@@ -350,36 +351,11 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
     @Override
     public void dispose() {
         if (networkClient != null) networkClient.disconnect();
-        bgShapes.dispose();
+        if (backgroundRenderer != null) backgroundRenderer.dispose();
         if (spriteRenderer != null) spriteRenderer.dispose();
         if (hudRenderer != null) hudRenderer.dispose();
         if (particleEffects != null) particleEffects.dispose();
         if (motionTrailEffect != null) motionTrailEffect.dispose();
-    }
-
-    // === Background ===
-
-    private void drawBackground(OrthographicCamera cam) {
-        bgShapes.setProjectionMatrix(cam.combined);
-
-        bgShapes.begin(ShapeRenderer.ShapeType.Filled);
-        bgShapes.setColor(0.12f, 0.12f, 0.14f, 1f);
-        bgShapes.rect(cam.position.x - 500, 0, 1000, 80);
-        bgShapes.end();
-
-        bgShapes.begin(ShapeRenderer.ShapeType.Line);
-        bgShapes.setColor(0.25f, 0.25f, 0.28f, 0.6f);
-        float startX = cam.position.x - 500;
-        for (int i = 0; i < 25; i++) {
-            float x1 = startX + i * 40;
-            bgShapes.line(x1, 82, x1 + 18, 80);
-        }
-        bgShapes.end();
-
-        bgShapes.begin(ShapeRenderer.ShapeType.Line);
-        bgShapes.setColor(0.2f, 0.2f, 0.22f, 0.4f);
-        bgShapes.line(480, 50, 480, 540);
-        bgShapes.end();
     }
 
     /** GWT-compatible font loading — uses preloaded internal assets (Gdx.files.internal). */

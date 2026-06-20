@@ -1,8 +1,6 @@
 package com.Fyren.render.libgdx;
 
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
-import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.Fyren.game.Fighter;
 import com.Fyren.game.FighterPreset;
@@ -37,7 +35,7 @@ public class GameScreen {
     private final boolean isNetworkMode;
 
     // 背景渲染
-    private final ShapeRenderer bgShapes;
+    private final BackgroundRenderer backgroundRenderer;
 
     // KO 音效去重
     private boolean koPlayed = false;
@@ -69,7 +67,7 @@ public class GameScreen {
         this.isNetworkMode = isNetworkMode;
         this.inputHandler = new GdxInputHandler();
         this.cameraController = new CameraController(960, 540);
-        this.bgShapes = new ShapeRenderer();
+        this.backgroundRenderer = new BackgroundRenderer();
     }
 
     // === 公开 setter ===
@@ -259,7 +257,7 @@ public class GameScreen {
 
         try {
             // 背景层
-            drawBackground(cam);
+            backgroundRenderer.render(cam);
 
             // 角色渲染
             if (spriteRenderer != null && gw.getPlayer1() != null && gw.getPlayer2() != null) {
@@ -283,38 +281,10 @@ public class GameScreen {
         }
     }
 
-    // === 背景渲染 ===
-
-    private void drawBackground(OrthographicCamera cam) {
-        bgShapes.setProjectionMatrix(cam.combined);
-
-        // 地面（深灰色区域）
-        bgShapes.begin(ShapeRenderer.ShapeType.Filled);
-        bgShapes.setColor(0.12f, 0.12f, 0.14f, 1f);
-        bgShapes.rect(cam.position.x - 500, 0, 1000, 80);
-        bgShapes.end();
-
-        // 地面线
-        bgShapes.begin(ShapeRenderer.ShapeType.Line);
-        bgShapes.setColor(0.25f, 0.25f, 0.28f, 0.6f);
-        float startX = cam.position.x - 500;
-        for (int i = 0; i < 25; i++) {
-            float x1 = startX + i * 40;
-            bgShapes.line(x1, 82, x1 + 18, 80);
-        }
-        bgShapes.end();
-
-        // 中线（格斗场地分隔）
-        bgShapes.begin(ShapeRenderer.ShapeType.Line);
-        bgShapes.setColor(0.2f, 0.2f, 0.22f, 0.4f);
-        bgShapes.line(480, 50, 480, 540);
-        bgShapes.end();
-    }
-
     // === 清理 ===
 
     public void dispose() {
-        bgShapes.dispose();
+        backgroundRenderer.dispose();
         if (spriteRenderer != null) spriteRenderer.dispose();
         if (hudRenderer != null) hudRenderer.dispose();
         if (particleEffects != null) particleEffects.dispose();
