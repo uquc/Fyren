@@ -9,18 +9,19 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.Fyren.GameClient;
 
 /**
- * 网络设置画面 — 输入用户名和密码，登录或注册后进入联机对战。
- * 服务器地址硬编码为 ECS 公网 IP。
+ * 登录画面 — 进入联网对战前的唯一认证入口。
+ * 服务器地址完全隐藏；登录一次后 session 保持，不需要重复输入。
  *
- * 可选项（4 个）:
- *   0 — 用户名输入框
- *   1 — 密码输入框
- *   2 — 登录按钮
- *   3 — 注册按钮
+ * 4 个可选项:
+ *   0 — 用户名
+ *   1 — 密码
+ *   2 — 登录
+ *   3 — 注册
  */
-public class NetworkSetupScreen extends AbstractScreen {
+public class LoginScreen extends AbstractScreen {
 
-    private static final String SERVER_HOST = "115.29.230.57";
+    /** ECS 服务器，用户不可见 */
+    static final String SERVER_HOST = "115.29.230.57";
 
     private int selectionIndex = 0;
     private String username = "";
@@ -30,10 +31,9 @@ public class NetworkSetupScreen extends AbstractScreen {
     private boolean loading = false;
     private Thread authThread = null;
 
-    // 按键边缘检测
     private boolean upWasDown, downWasDown, enterWasDown, escWasDown, backWasDown;
 
-    public NetworkSetupScreen(FyrenGame game, ShapeRenderer shapes, SpriteBatch batch, BitmapFont font) {
+    public LoginScreen(FyrenGame game, ShapeRenderer shapes, SpriteBatch batch, BitmapFont font) {
         super(game, shapes, batch, font);
     }
 
@@ -48,11 +48,7 @@ public class NetworkSetupScreen extends AbstractScreen {
     @Override
     public void render(float delta) {
         if (!loading) handleInput();
-
-        if (authThread != null && !authThread.isAlive()) {
-            authThread = null;
-            loading = false;
-        }
+        if (authThread != null && !authThread.isAlive()) { authThread = null; loading = false; }
 
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
@@ -60,22 +56,14 @@ public class NetworkSetupScreen extends AbstractScreen {
         batch.begin();
         font.setColor(0.33f, 0.33f, 0.33f, 1f);
         font.getData().setScale(0.9f);
-        font.draw(batch, "联网设置", 80, 460);
-        font.getData().setScale(1.0f);
-        batch.end();
-
-        // 服务器信息（不可编辑）
-        batch.begin();
-        font.setColor(0.47f, 0.47f, 0.47f, 1f);
-        font.getData().setScale(0.85f);
-        font.draw(batch, "服务器: " + SERVER_HOST, 80, 430);
+        font.draw(batch, "账号登录", 80, 420);
         font.getData().setScale(1.0f);
         batch.end();
 
         // 字段
         String[] labels = {"用户名:", "密码:"};
         String[] values = {username, maskPassword()};
-        float[] yPositions = {370, 320};
+        float[] yPositions = {350, 300};
 
         for (int i = 0; i < 2; i++) {
             boolean sel = (i == selectionIndex);
@@ -111,7 +99,7 @@ public class NetworkSetupScreen extends AbstractScreen {
         for (int i = 0; i < 2; i++) {
             int btnIdx = 2 + i;
             boolean sel = (btnIdx == selectionIndex);
-            float btnY = 250 - i * 50;
+            float btnY = 220 - i * 50;
             batch.begin();
             font.setColor(sel ? 0.898f : 0.47f, sel ? 0.98f : 0.47f, sel ? 0.937f : 0.47f, 1f);
             font.getData().setScale(1.3f);
@@ -121,13 +109,13 @@ public class NetworkSetupScreen extends AbstractScreen {
             batch.end();
         }
 
-        // 状态 / 错误
+        // 状态
         if (!statusText.isEmpty()) {
             batch.begin();
             boolean isError = statusText.startsWith("✗") || statusText.contains("失败");
             font.setColor(isError ? 0.9f : 0.3f, isError ? 0.3f : 0.9f, isError ? 0.3f : 0.3f, 1f);
             font.getData().setScale(0.9f);
-            font.draw(batch, statusText, 80, 140);
+            font.draw(batch, statusText, 80, 130);
             font.getData().setScale(1.0f);
             batch.end();
         }
@@ -136,7 +124,7 @@ public class NetworkSetupScreen extends AbstractScreen {
             batch.begin();
             font.setColor(1f, 1f, 0.3f, 1f);
             font.getData().setScale(0.9f);
-            font.draw(batch, "正在连接...", 80, 115);
+            font.draw(batch, "正在连接...", 80, 105);
             font.getData().setScale(1.0f);
             batch.end();
         }
@@ -144,47 +132,33 @@ public class NetworkSetupScreen extends AbstractScreen {
         batch.begin();
         font.setColor(0.33f, 0.33f, 0.33f, 1f);
         font.getData().setScale(0.85f);
-        font.draw(batch, "ESC - 返回标题", 80, 30);
+        font.draw(batch, "ESC - 返回", 80, 30);
         font.getData().setScale(1.0f);
         batch.end();
     }
 
     private void handleInput() {
-        boolean up = Gdx.input.isKeyPressed(Input.Keys.UP) || Gdx.input.isKeyPressed(Input.Keys.W);
+        boolean up   = Gdx.input.isKeyPressed(Input.Keys.UP)   || Gdx.input.isKeyPressed(Input.Keys.W);
         boolean down = Gdx.input.isKeyPressed(Input.Keys.DOWN) || Gdx.input.isKeyPressed(Input.Keys.S);
         boolean enter = Gdx.input.isKeyPressed(Input.Keys.ENTER);
-        boolean esc = Gdx.input.isKeyPressed(Input.Keys.ESCAPE);
+        boolean esc  = Gdx.input.isKeyPressed(Input.Keys.ESCAPE);
         boolean back = Gdx.input.isKeyPressed(Input.Keys.BACKSPACE);
 
-        if (up && !upWasDown)
-            selectionIndex = (selectionIndex - 1 + 4) % 4;
-        if (down && !downWasDown)
-            selectionIndex = (selectionIndex + 1) % 4;
+        if (up && !upWasDown)   selectionIndex = (selectionIndex - 1 + 4) % 4;
+        if (down && !downWasDown) selectionIndex = (selectionIndex + 1) % 4;
 
-        if (esc && !escWasDown) {
-            game.goToTitle();
-            return;
-        }
+        if (esc && !escWasDown) { game.goToTitle(); return; }
 
-        // 文本输入（仅字段 0/1）
-        if (selectionIndex <= 1) {
-            handleTextInput();
-        }
-
-        if (back && !backWasDown) {
-            deleteChar();
-        }
+        if (selectionIndex <= 1) handleTextInput();
+        if (back && !backWasDown) deleteChar();
 
         if (enter && !enterWasDown) {
             if (selectionIndex == 2) doLogin();
             else if (selectionIndex == 3) doRegister();
         }
 
-        upWasDown = up;
-        downWasDown = down;
-        enterWasDown = enter;
-        escWasDown = esc;
-        backWasDown = back;
+        upWasDown = up; downWasDown = down; enterWasDown = enter;
+        escWasDown = esc; backWasDown = back;
     }
 
     private void handleTextInput() {
@@ -192,106 +166,72 @@ public class NetworkSetupScreen extends AbstractScreen {
             if (Gdx.input.isKeyJustPressed(key)) {
                 char c = (char) ('a' + (key - Input.Keys.A));
                 if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)
-                    || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT))
-                    c = Character.toUpperCase(c);
+                    || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)) c = Character.toUpperCase(c);
                 appendChar(c);
             }
         }
         for (int key = Input.Keys.NUM_0; key <= Input.Keys.NUM_9; key++) {
-            if (Gdx.input.isKeyJustPressed(key)) {
-                appendChar((char) ('0' + (key - Input.Keys.NUM_0)));
-            }
+            if (Gdx.input.isKeyJustPressed(key)) appendChar((char) ('0' + (key - Input.Keys.NUM_0)));
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.PERIOD)) appendChar('.');
-        if (Gdx.input.isKeyJustPressed(Input.Keys.MINUS)) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.MINUS))
             appendChar(Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)
                 || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT) ? '_' : '-');
-        }
     }
 
     private void appendChar(char c) {
-        switch (selectionIndex) {
-            case 0: if (username.length() < 20) username += c; break;
-            case 1: if (password.length() < 30) password += c; break;
-        }
+        if (selectionIndex == 0 && username.length() < 20) username += c;
+        else if (selectionIndex == 1 && password.length() < 30) password += c;
     }
 
     private void deleteChar() {
-        switch (selectionIndex) {
-            case 0: if (!username.isEmpty()) username = username.substring(0, username.length() - 1); break;
-            case 1: if (!password.isEmpty()) password = password.substring(0, password.length() - 1); break;
-        }
+        if (selectionIndex == 0 && !username.isEmpty()) username = username.substring(0, username.length() - 1);
+        else if (selectionIndex == 1 && !password.isEmpty()) password = password.substring(0, password.length() - 1);
     }
 
-    private String maskPassword() {
-        return "*".repeat(password.length());
-    }
+    private String maskPassword() { return "*".repeat(password.length()); }
 
-    // ========== 认证操作 ==========
+    // ========== 认证 ==========
 
     private void doLogin() {
-        if (username.isEmpty() || password.isEmpty()) {
-            statusText = "✗ 请输入用户名和密码";
-            return;
-        }
-        statusText = "";
-        loading = true;
-
-        final String user = username.trim();
-        final String pass = password;
-
+        if (username.isEmpty() || password.isEmpty()) { statusText = "✗ 请输入用户名和密码"; return; }
+        statusText = ""; loading = true;
+        final String user = username.trim(), pass = password;
         authThread = new Thread(() -> {
-            GameClient.AuthResult result = GameClient.login(SERVER_HOST, 8081, user, pass);
-            Gdx.app.postRunnable(() -> onAuthResult(result, user));
+            GameClient.AuthResult r = GameClient.login(SERVER_HOST, 8081, user, pass);
+            Gdx.app.postRunnable(() -> onAuthResult(r));
         });
-        authThread.setDaemon(true);
-        authThread.start();
+        authThread.setDaemon(true); authThread.start();
     }
 
     private void doRegister() {
-        if (username.isEmpty() || password.isEmpty()) {
-            statusText = "✗ 请输入用户名和密码";
-            return;
-        }
-        if (password.length() < 6) {
-            statusText = "✗ 密码至少需要 6 个字符";
-            return;
-        }
-        statusText = "";
-        loading = true;
-
-        final String user = username.trim();
-        final String pass = password;
-
+        if (username.isEmpty() || password.isEmpty()) { statusText = "✗ 请输入用户名和密码"; return; }
+        if (password.length() < 6) { statusText = "✗ 密码至少需要 6 个字符"; return; }
+        statusText = ""; loading = true;
+        final String user = username.trim(), pass = password;
         authThread = new Thread(() -> {
-            GameClient.AuthResult regResult = GameClient.register(SERVER_HOST, 8081, user, pass);
-            if (!regResult.success) {
-                Gdx.app.postRunnable(() -> {
-                    statusText = "✗ 注册失败: " + regResult.error;
-                    loading = false;
-                });
+            GameClient.AuthResult reg = GameClient.register(SERVER_HOST, 8081, user, pass);
+            if (!reg.success) {
+                Gdx.app.postRunnable(() -> { statusText = "✗ 注册失败: " + reg.error; loading = false; });
                 return;
             }
-            GameClient.AuthResult loginResult = GameClient.login(SERVER_HOST, 8081, user, pass);
-            Gdx.app.postRunnable(() -> onAuthResult(loginResult, user));
+            GameClient.AuthResult login = GameClient.login(SERVER_HOST, 8081, user, pass);
+            Gdx.app.postRunnable(() -> onAuthResult(login));
         });
-        authThread.setDaemon(true);
-        authThread.start();
+        authThread.setDaemon(true); authThread.start();
     }
 
-    private void onAuthResult(GameClient.AuthResult result, String user) {
+    private void onAuthResult(GameClient.AuthResult result) {
         loading = false;
         if (!result.success) {
             statusText = "✗ " + (result.error != null ? result.error : "认证失败");
             return;
         }
-
-        statusText = "✓ 登录成功! userId=" + result.userId;
+        statusText = "✓ 登录成功";
 
         GameClient client = new GameClient(SERVER_HOST, 9876, result.userId, result.mmr,
             com.Fyren.game.FighterPreset.TAKESHI);
         client.setTokens(result.accessToken, result.refreshToken);
-
-        game.switchToNetworkMode(client);
+        game.onLoginSuccess(client);
     }
 }

@@ -8,26 +8,23 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 
 /**
- * 标题画面 — 左对齐 Logo + 3 项菜单。
+ * 标题画面 — Logo + 4 项中文菜单。
  */
 public class TitleScreen extends AbstractScreen {
 
     private static final String[] MENU_ITEMS = {
-        "NETWORK MATCH",
-        "TRAINING MODE",
-        "EXIT"
+        "联网对战",
+        "本地对战",
+        "训练模式",
+        "退出"
     };
 
     private int selectionIndex = 0;
 
-    // "Coming Soon" flash
     private boolean showComingSoon = false;
     private float comingSoonTimer = 0f;
 
-    // Edge detection
-    private boolean upWasDown = false;
-    private boolean downWasDown = false;
-    private boolean enterWasDown = false;
+    private boolean upWasDown, downWasDown, enterWasDown;
 
     public TitleScreen(FyrenGame game, ShapeRenderer shapes, SpriteBatch batch, BitmapFont font) {
         super(game, shapes, batch, font);
@@ -41,7 +38,6 @@ public class TitleScreen extends AbstractScreen {
 
     @Override
     public void render(float delta) {
-        // --- input ---
         if (showComingSoon) {
             comingSoonTimer -= delta;
             if (comingSoonTimer <= 0f) showComingSoon = false;
@@ -49,44 +45,47 @@ public class TitleScreen extends AbstractScreen {
             handleInput();
         }
 
-        // --- clear ---
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        // --- Logo ---
+        // Logo
         batch.begin();
-        font.setColor(0.898f, 0.22f, 0.275f, 1f); // #e63946
+        font.setColor(0.898f, 0.22f, 0.275f, 1f);
         font.getData().setScale(3.5f);
         font.draw(batch, "風 蓮", 80, 420);
-
         font.getData().setScale(1.0f);
         font.setColor(0.33f, 0.33f, 0.33f, 1f);
         font.draw(batch, "F Y R E N", 84, 375);
         batch.end();
 
-        // --- Menu items ---
+        // Menu
         batch.begin();
         for (int i = 0; i < MENU_ITEMS.length; i++) {
             boolean sel = (i == selectionIndex);
             font.setColor(sel ? 0.945f : 0.47f, sel ? 0.98f : 0.47f, sel ? 0.937f : 0.47f, 1f);
             font.getData().setScale(1.3f);
             String prefix = sel ? "▸ " : "  ";
-            font.draw(batch, prefix + MENU_ITEMS[i], 80, 260 - i * 45);
+            String text = prefix + MENU_ITEMS[i];
+            // 联网对战：已登录时加提示
+            if (i == 0 && game.isNetworkMode() && game.getGameClient() != null) {
+                text += "  [已登录]";
+            }
+            font.draw(batch, text, 80, 260 - i * 45);
         }
         font.getData().setScale(1.0f);
         batch.end();
 
-        // --- Version ---
+        // Version
         batch.begin();
         font.setColor(0.267f, 0.267f, 0.267f, 1f);
-        font.draw(batch, "v0.2.0", 900, 20);
+        font.draw(batch, "v0.3.0", 900, 20);
         batch.end();
 
-        // --- Coming soon overlay ---
+        // Coming Soon
         if (showComingSoon) {
             batch.begin();
             font.setColor(1f, 1f, 0.3f, 1f);
             font.getData().setScale(1.5f);
-            font.draw(batch, "COMING SOON", 80, 100);
+            font.draw(batch, "即将推出", 80, 100);
             font.getData().setScale(1.0f);
             batch.end();
         }
@@ -103,9 +102,10 @@ public class TitleScreen extends AbstractScreen {
             selectionIndex = (selectionIndex + 1) % MENU_ITEMS.length;
         if (enter && !enterWasDown) {
             switch (selectionIndex) {
-                case 0: game.goToNetworkSetup(); break;
-                case 1: showComingSoon = true; comingSoonTimer = 1.5f; break;
-                case 2: Gdx.app.exit(); break;
+                case 0: game.goToNetworkOrLogin(); break;
+                case 1: game.enterLocalMatch(); break;
+                case 2: showComingSoon = true; comingSoonTimer = 1.5f; break;
+                case 3: Gdx.app.exit(); break;
             }
         }
 

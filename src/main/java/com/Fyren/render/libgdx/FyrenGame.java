@@ -22,7 +22,7 @@ import com.Fyren.game.GameWorld;
 public class FyrenGame extends ApplicationAdapter {
 
     // ---- Screen state ----
-    public enum ScreenState { TITLE, NETWORK_SETUP, CHAR_SELECT, MATCHING, VS_SPLASH, FIGHT, RESULT }
+    public enum ScreenState { TITLE, LOGIN, CHAR_SELECT, MATCHING, VS_SPLASH, FIGHT, RESULT }
 
     private ScreenState state;
     private AbstractScreen currentScreen;
@@ -155,20 +155,28 @@ public class FyrenGame extends ApplicationAdapter {
         startTransition(ScreenState.TITLE);
     }
 
-    /** 从 TitleScreen 进入网络设置画面 */
-    void goToNetworkSetup() {
-        startTransition(ScreenState.NETWORK_SETUP);
+    /**
+     * TitleScreen "联网对战" 入口。
+     * 已登录 → 直接进选人；未登录 → 跳转登录画面。
+     */
+    void goToNetworkOrLogin() {
+        if (mode == GameMode.NETWORK && gameClient != null) {
+            // 已登录，直接联网对战
+            startTransition(ScreenState.CHAR_SELECT);
+        } else {
+            startTransition(ScreenState.LOGIN);
+        }
     }
 
-    /** NetworkSetupScreen 认证成功后调用 — 切换到 NETWORK 模式并进入选人 */
-    public void switchToNetworkMode(GameClient client) {
+    /** LoginScreen 认证成功后调用 — 切换到 NETWORK 模式并进入选人 */
+    public void onLoginSuccess(GameClient client) {
         this.mode = GameMode.NETWORK;
         this.gameClient = client;
-        // 断开旧连接（如果有），确保后续 connect() 使用新的 serverHost
         startTransition(ScreenState.CHAR_SELECT);
     }
 
-    void enterNetworkMatch() {
+    /** 本地对战入口 */
+    void enterLocalMatch() {
         demoSelectingP1 = true;
         startTransition(ScreenState.CHAR_SELECT);
     }
@@ -231,6 +239,7 @@ public class FyrenGame extends ApplicationAdapter {
     FighterPreset getDemoP1Preset() { return demoP1Preset; }
     FighterPreset getDemoP2Preset() { return demoP2Preset; }
     boolean isDemoMode() { return mode == GameMode.DEMO; }
+    boolean isNetworkMode() { return mode == GameMode.NETWORK; }
     GameScreen getGameScreen() { return gameScreen; }
 
     // ========== Private ==========
@@ -333,9 +342,9 @@ public class FyrenGame extends ApplicationAdapter {
      */
     private static BitmapFont createCjkFont() {
         // 收集项目中所有中文字符
-        String appChinese = "風蓮服务器用户名密码登录注册联网设置成功失败正在连接返回标题"
+        String appChinese = "風蓮账号登录用户名密码注册成功失败正在连接返回"
             + "请输入和至少个字符影武刚选择你的角色取消匹配等待对手中"
-            + "加载音效已胜败平局再战退出训练模式即将推出";
+            + "加载音效已胜败平局再战退出训练模式即将推出联网对战本地";
 
         String characters = FreeTypeFontGenerator.DEFAULT_CHARS + appChinese;
 
@@ -376,8 +385,8 @@ public class FyrenGame extends ApplicationAdapter {
             case TITLE:
                 currentScreen = new TitleScreen(this, shapes, batch, font);
                 break;
-            case NETWORK_SETUP:
-                currentScreen = new NetworkSetupScreen(this, shapes, batch, font);
+            case LOGIN:
+                currentScreen = new LoginScreen(this, shapes, batch, font);
                 break;
             case CHAR_SELECT:
                 currentScreen = new CharacterSelectScreen(this, shapes, batch, font);

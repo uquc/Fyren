@@ -26,6 +26,11 @@ java -cp target/classes com.Fyren.GameMain client <serverIp> [port] [playerId] -
 # Local demo (libGDX window, dual keyboard)
 java -cp target/classes com.Fyren.render.libgdx.FyrenLauncher demo --preset kage --preset2 gou
 
+# EXE 联网对战 (v0.3.0+):
+#   双击 Fyren.exe → TitleScreen → "NETWORK MATCH"
+#   → NetworkSetupScreen: 输入服务器IP + 用户名 + 密码 → 登录/注册
+#   → 选人 → MatchingScreen → 对战
+
 # Fat JAR (shade plugin)
 mvn package -q
 java -jar target/Fyren-1.0-SNAPSHOT.jar            # libGDX demo
@@ -255,7 +260,41 @@ Swing mode (legacy, retained):
   Swing Timer → GamePanel.repaint() → StickFigureRenderer
 ```
 
-## Current Session (2026-06-19) — WSS 联网修复 + EXE 分发 + ECS 恢复
+## Current Session (2026-06-20) — EXE 联网对战入口
+
+### EXE 启动崩溃修复
+**根因:** jpackage `--java-options "-XstartOnFirstThread"`（macOS 专属）→ Windows JVM 不识别 → 进程直接退出。
+**修复:** 移除该参数，补充 `assets/sounds/` 到 app-image。
+
+### EXE 联网对战入口（NEW）
+**问题:** 双击 EXE → mode 默认 `"demo"` → TitleScreen "NETWORK MATCH" 仍走本地双人。CLI 参数才能联网，EXE 无法传参。
+
+**新增文件:**
+- `NetworkSetupScreen.java` — 服务器IP + 用户名 + 密码输入，登录/注册按钮，后台 HTTP 调 Auth API
+
+**修改文件:**
+| 文件 | 改动 |
+|------|------|
+| `FyrenGame.java` | `ScreenState` +`NETWORK_SETUP`；新增 `switchToNetworkMode(GameClient)`、`goToNetworkSetup()` |
+| `TitleScreen.java` | "NETWORK MATCH" → `game.goToNetworkSetup()` |
+
+**用户流程:**
+```
+双击 Fyren.exe → TitleScreen "NETWORK MATCH"
+  → NetworkSetupScreen (输入 server/username/password)
+    → [登录] POST /auth/login → GameClient(userId, mmr)
+    → [注册] POST /auth/register → 自动登录 → GameClient
+  → CharacterSelect → MatchingScreen → 联网对战
+```
+
+### 会话语录
+```
+(待 commit)
+```
+
+## Historical Session (2026-06-19) — WSS 联网修复 + EXE 分发 + ECS 恢复
+
+## Historical Session (2026-06-19) — WSS 联网修复 + EXE 分发 + ECS 恢复
 
 ### ECS 宕机诊断 & 恢复
 
