@@ -33,6 +33,7 @@ services:
       - "8080:8080"    # HTTP 状态 API
       - "8081:8081"    # 认证 API
       - "9876:9876/udp" # UDP 游戏端口
+      - "9878:9878"    # WebSocket (浏览器客户端)
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379

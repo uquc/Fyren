@@ -68,7 +68,13 @@
       "Bash(dir /s /b src\\\\test\\\\java\\\\*.java)",
       "WebFetch(domain:115.29.230.57.nip.io)",
       "Bash(netstat -ano)",
-      "Bash(gh auth *)"
+      "Bash(gh auth *)",
+      "WebSearch",
+      "WebFetch(domain:free-game-assets.itch.io)",
+      "mcp__chrome-devtools__new_page",
+      "mcp__chrome-devtools__take_screenshot",
+      "Bash(mvn dependency:sources -DincludeArtifactIds=gdx-backend-gwt,gdx -q)",
+      "Bash(./gwt-compile.bat)"
     ]
   }
 }

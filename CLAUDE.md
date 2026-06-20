@@ -260,36 +260,39 @@ Swing mode (legacy, retained):
   Swing Timer → GamePanel.repaint() → StickFigureRenderer
 ```
 
-## Current Session (2026-06-20) — EXE 联网对战入口
+## Current Session (2026-06-20) — EXE 联网对战完整实现
 
-### EXE 启动崩溃修复
-**根因:** jpackage `--java-options "-XstartOnFirstThread"`（macOS 专属）→ Windows JVM 不识别 → 进程直接退出。
-**修复:** 移除该参数，补充 `assets/sounds/` 到 app-image。
+### 1. EXE 启动崩溃修复
+**根因:** jpackage `--java-options "-XstartOnFirstThread"`（macOS 专属）→ Windows JVM 不识别。
+**修复:** 移除该参数。补充 `assets/sounds/` 到 app-image。
 
-### EXE 联网对战入口（NEW）
-**问题:** 双击 EXE → mode 默认 `"demo"` → TitleScreen "NETWORK MATCH" 仍走本地双人。CLI 参数才能联网，EXE 无法传参。
-
-**新增文件:**
-- `NetworkSetupScreen.java` — 服务器IP + 用户名 + 密码输入，登录/注册按钮，后台 HTTP 调 Auth API
-
-**修改文件:**
+### 2. 联网对战入口（LoginScreen）
+**问题:** 双击 EXE → mode 默认 `"demo"` → 无联网能力。CLI 参数才能联网。
+**新增:** `LoginScreen.java` — 用户名+密码登录/注册，服务器 IP 隐藏。首次登录后 session 保持。
+**修改:**
 | 文件 | 改动 |
 |------|------|
-| `FyrenGame.java` | `ScreenState` +`NETWORK_SETUP`；新增 `switchToNetworkMode(GameClient)`、`goToNetworkSetup()` |
-| `TitleScreen.java` | "NETWORK MATCH" → `game.goToNetworkSetup()` |
+| `FyrenGame.java` | `ScreenState` +`LOGIN`；`goToNetworkOrLogin()` 已登录直接进选人；`onLoginSuccess()` 切换 NETWORK 模式 |
+| `TitleScreen.java` | 菜单中文化 4 项：「联网对战」「本地对战」「训练模式」「退出」；已登录提示 |
 
-**用户流程:**
+### 3. CJK 字体渲染
+**问题:** libGDX 默认 BitmapFont 只含 ASCII，中文全变方块。
+**修复:** pom.xml 加 `gdx-freetype`；`FyrenGame.createCjkFont()` 从系统加载微软雅黑。
+
+### 4. 用户流程
 ```
-双击 Fyren.exe → TitleScreen "NETWORK MATCH"
-  → NetworkSetupScreen (输入 server/username/password)
-    → [登录] POST /auth/login → GameClient(userId, mmr)
-    → [注册] POST /auth/register → 自动登录 → GameClient
-  → CharacterSelect → MatchingScreen → 联网对战
+双击 Fyren.exe → TitleScreen
+  ├── 联网对战 → 首次: LoginScreen → 选人 → 匹配
+  │              再次: 直接进选人 [已登录]
+  ├── 本地对战 → 选人 (P1+P2 同键盘)
+  ├── 训练模式 → 即将推出
+  └── 退出
 ```
 
 ### 会话语录
 ```
-(待 commit)
+7099d39 feat: LoginScreen replaces NetworkSetupScreen — login once, server IP hidden, Chinese menus
+a6137a4 feat: EXE network setup + CJK font rendering
 ```
 
 ## Historical Session (2026-06-19) — WSS 联网修复 + EXE 分发 + ECS 恢复
