@@ -21,9 +21,6 @@ public class TitleScreen extends AbstractScreen {
 
     private int selectionIndex = 0;
 
-    private boolean showComingSoon = false;
-    private float comingSoonTimer = 0f;
-
     private boolean upWasDown, downWasDown, enterWasDown;
 
     public TitleScreen(FyrenGame game, ShapeRenderer shapes, SpriteBatch batch, BitmapFont font) {
@@ -33,17 +30,11 @@ public class TitleScreen extends AbstractScreen {
     @Override
     public void enter() {
         selectionIndex = 0;
-        showComingSoon = false;
     }
 
     @Override
     public void render(float delta) {
-        if (showComingSoon) {
-            comingSoonTimer -= delta;
-            if (comingSoonTimer <= 0f) showComingSoon = false;
-        } else {
-            handleInput();
-        }
+        handleInput();
 
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
@@ -79,16 +70,6 @@ public class TitleScreen extends AbstractScreen {
         font.setColor(0.267f, 0.267f, 0.267f, 1f);
         font.draw(batch, "v0.3.0", 900, 20);
         batch.end();
-
-        // Coming Soon
-        if (showComingSoon) {
-            batch.begin();
-            font.setColor(1f, 1f, 0.3f, 1f);
-            font.getData().setScale(1.5f);
-            font.draw(batch, "即将推出", 80, 100);
-            font.getData().setScale(1.0f);
-            batch.end();
-        }
     }
 
     private void handleInput() {
@@ -104,7 +85,7 @@ public class TitleScreen extends AbstractScreen {
             switch (selectionIndex) {
                 case 0: game.goToNetworkOrLogin(); break;
                 case 1: game.enterLocalMatch(); break;
-                case 2: showComingSoon = true; comingSoonTimer = 1.5f; break;
+                case 2: game.enterTrainingMode(); break;
                 case 3: Gdx.app.exit(); break;
             }
         }

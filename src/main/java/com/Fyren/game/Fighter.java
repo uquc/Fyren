@@ -249,7 +249,7 @@ public class Fighter {
         }
     }
 
-    private int[] getFrameData(ActionType type) {
+    public int[] getFrameData(ActionType type) {
         switch (type) {
             case PUNCH: return PUNCH_FRAMES;
             case KICK: return KICK_FRAMES;

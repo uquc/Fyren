@@ -22,7 +22,7 @@ import com.Fyren.game.GameWorld;
 public class FyrenGame extends ApplicationAdapter {
 
     // ---- Screen state ----
-    public enum ScreenState { TITLE, LOGIN, CHAR_SELECT, MATCHING, VS_SPLASH, FIGHT, RESULT }
+    public enum ScreenState { TITLE, LOGIN, CHAR_SELECT, MATCHING, VS_SPLASH, FIGHT, RESULT, TRAINING }
 
     private ScreenState state;
     private AbstractScreen currentScreen;
@@ -47,6 +47,7 @@ public class FyrenGame extends ApplicationAdapter {
     private ParticleEffects particleEffects;
     private MotionTrailEffect motionTrailEffect;
     private GameScreen gameScreen;
+    private TrainingScreen trainingScreen;
 
     // ---- Network ----
     private GameClient gameClient;
@@ -117,9 +118,13 @@ public class FyrenGame extends ApplicationAdapter {
             return;
         }
 
-        // FIGHT is a special case — GameScreen has different API
+        // FIGHT and TRAINING are special cases
         if (state == ScreenState.FIGHT) {
             renderFight(delta);
+            return;
+        }
+        if (state == ScreenState.TRAINING) {
+            renderTraining(delta);
             return;
         }
 
@@ -134,6 +139,7 @@ public class FyrenGame extends ApplicationAdapter {
         if (currentScreen != null) currentScreen.dispose();
         // GameScreen disposes its own injected renderers (spriteRenderer, hudRenderer, etc.)
         if (gameScreen != null) gameScreen.dispose();
+        if (trainingScreen != null) trainingScreen.dispose();
         // Only dispose fight renderers if GameScreen never took ownership
         if (gameScreen == null) {
             if (spriteRenderer != null) spriteRenderer.dispose();
@@ -179,6 +185,19 @@ public class FyrenGame extends ApplicationAdapter {
     void enterLocalMatch() {
         demoSelectingP1 = true;
         startTransition(ScreenState.CHAR_SELECT);
+    }
+
+    /** 训练模式入口 — 直接进入，使用默认角色 */
+    void enterTrainingMode() {
+        // 检查渲染组件是否已初始化
+        if (spriteRenderer == null) {
+            spriteRenderer = new SpriteRenderer();
+            hudRenderer = new HudRenderer();
+            hitEffects = new HitEffects();
+            particleEffects = new ParticleEffects();
+            motionTrailEffect = new MotionTrailEffect();
+        }
+        startTransition(ScreenState.TRAINING);
     }
 
     void onCharacterSelected(FighterPreset preset) {
@@ -262,6 +281,15 @@ public class FyrenGame extends ApplicationAdapter {
         if (gameScreen != null) {
             gameScreen.update(delta);
             gameScreen.render();
+        }
+    }
+
+    private void renderTraining(float delta) {
+        // ESC handled inside TrainingScreen.update() → calls back to goToTitle()
+
+        if (trainingScreen != null) {
+            trainingScreen.update(delta);
+            trainingScreen.render();
         }
     }
 
@@ -379,6 +407,12 @@ public class FyrenGame extends ApplicationAdapter {
     }
 
     private void switchToScreen(ScreenState newState) {
+        // 离开训练模式时清理
+        if (state == ScreenState.TRAINING && trainingScreen != null) {
+            trainingScreen.dispose();
+            trainingScreen = null;
+        }
+
         state = newState;
 
         switch (newState) {
@@ -400,6 +434,9 @@ public class FyrenGame extends ApplicationAdapter {
             case FIGHT:
                 startFightScreen();
                 return; // GameScreen is not AbstractScreen, no enter()
+            case TRAINING:
+                startTrainingScreen();
+                return; // TrainingScreen is not AbstractScreen, no enter()
             case RESULT:
                 currentScreen = new ResultScreen(this, shapes, batch, font);
                 break;
@@ -430,5 +467,18 @@ public class FyrenGame extends ApplicationAdapter {
         gameScreen.setParticleEffects(particleEffects);
         gameScreen.setMotionTrailEffect(motionTrailEffect);
         gameScreen.setAudioManager(audioManager);
+    }
+
+    private void startTrainingScreen() {
+        currentScreen = null;
+
+        // 清理旧的 trainingScreen
+        if (trainingScreen != null) {
+            trainingScreen.dispose();
+        }
+
+        // 默认用 TAKESHI，训练中可按键切换角色
+        trainingScreen = new TrainingScreen(FighterPreset.TAKESHI, font, this::goToTitle);
+        Gdx.graphics.setTitle("Fyren — Training Mode");
     }
 }
