@@ -100,7 +100,9 @@ public class HudRenderer {
             shapes.rect(x + HEALTH_BAR_W * actualRatio, y, 2, HEALTH_BAR_H);
         }
 
-        // 边框
+        // 边框（Line 模式，避免 Filled 矩形覆盖血量填充）
+        shapes.end();
+        shapes.begin(ShapeRenderer.ShapeType.Line);
         shapes.setColor(Color.WHITE);
         shapes.rect(x, y, HEALTH_BAR_W, HEALTH_BAR_H);
         shapes.end();
