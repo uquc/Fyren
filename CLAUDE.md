@@ -80,6 +80,8 @@ com.Fyren
 │   │   ParticleEffects   — hit sparks, KO explosion, dash dust
 │   │   MotionTrailEffect — afterimage trail during dash/special
 │   │   AudioManager      — 6 CC0 WAV sound effects (hit/special/dash/block/KO), libGDX Sound API
+│   │   BackgroundRenderer — 4-layer parallax background (sky+stars+moon, mountains, bamboo/trees, ground+grass)
+│   │   TrainingScreen     — solo practice mode, frame data overlay, input display, dummy opponent
 │   │   └── gwt/
 │   │       FyrenGwtLauncher — GWT/WebGL entry (demo + network mode via ?mode=network)
 │   ├── SwingGameWindow   — JFrame 960×540, Swing Timer 16ms, for network client mode
@@ -142,7 +144,7 @@ FyrenLauncher (main, CLI) → FyrenGame (ApplicationListener)
     │   ├── CameraController.update(p1, p2, delta)
     │   └── triggerAudio(p1, p2, dmg1, dmg2)  — consume fighter audio flags
     └── render()
-        ├── drawBackground (ground + grid via ShapeRenderer)
+        ├── BackgroundRenderer.render(cam)  — 4 layers: sky → mountains → bamboo → ground
         ├── SpriteRenderer (procedural textures + SpriteBatch)
         ├── MotionTrailEffect.render()
         ├── ParticleEffects.render()
@@ -260,37 +262,51 @@ Swing mode (legacy, retained):
   Swing Timer → GamePanel.repaint() → StickFigureRenderer
 ```
 
-## Current Session (2026-06-20) — EXE 联网对战完整实现
+## Current Session (2026-06-20) — P1 全部完成：姿态动画 + 视差背景 + 训练模式
 
-### 1. EXE 启动崩溃修复
-**根因:** jpackage `--java-options "-XstartOnFirstThread"`（macOS 专属）→ Windows JVM 不识别。
-**修复:** 移除该参数。补充 `assets/sounds/` 到 app-image。
+### 1. 上半场：EXE 联网 + 登录 + CJK 字体
+参见 Historical 下方 original session 内容。
 
-### 2. 联网对战入口（LoginScreen）
-**问题:** 双击 EXE → mode 默认 `"demo"` → 无联网能力。CLI 参数才能联网。
-**新增:** `LoginScreen.java` — 用户名+密码登录/注册，服务器 IP 隐藏。首次登录后 session 保持。
-**修改:**
-| 文件 | 改动 |
-|------|------|
-| `FyrenGame.java` | `ScreenState` +`LOGIN`；`goToNetworkOrLogin()` 已登录直接进选人；`onLoginSuccess()` 切换 NETWORK 模式 |
-| `TitleScreen.java` | 菜单中文化 4 项：「联网对战」「本地对战」「训练模式」「退出」；已登录提示 |
+### 2. 姿态动画系统 (ba64c24)
+**问题:** 所有动作共用同一套 stick figure 姿势，缺乏反馈感。
+**修复:** `SpriteRenderer.java` — 每个 `FighterStance` 独立姿态：
+- 腿：KICK 高踢/DASH 后蹬/WALK 交替/BLOCK 并拢/HURT 曲腿/SPECIAL 马步
+- 躯干：PUNCH 前倾/KICK 后仰/DASH 大倾角/HURT 后仰/SPECIAL 沉腰
+- 手臂：PUNCH 直拳/KICK 展开平衡/THROW 前伸/SPECIAL 高举/BLOCK 交叉格挡/HURT 下垂/DASH 后摆
+- 头部：随动作偏移（PUNCH 前探/KICK 后缩/DASH 大幅度前移）
+- IDLE 呼吸起伏 (sin 1.5px)，WALK 摆臂 + 双腿交替
 
-### 3. CJK 字体渲染
-**问题:** libGDX 默认 BitmapFont 只含 ASCII，中文全变方块。
-**修复:** pom.xml 加 `gdx-freetype`；`FyrenGame.createCjkFont()` 从系统加载微软雅黑。
+### 3. 多层视差背景 (d493892)
+**问题:** 背景只有纯黑 + 灰色地面方块，缺乏场景感。
+**新增:** `BackgroundRenderer.java` — 4 层全程程序化生成，无外部素材：
+- 天空：渐变色 + 月亮 + 80 颗闪烁星点
+- 远山：双层剪影（0.15x 视差），正弦叠加 + 随机扰动
+- 中景：60 棵竹/松树（0.4x 视差），竹有节+叶，松有锥形叠层
+- 地面：土色 + 草地线 + 石块纹理 + 中线分隔
+- 替换 `GameScreen` 和 `FyrenGwtLauncher` 中的旧 `drawBackground()`
 
-### 4. 用户流程
-```
-双击 Fyren.exe → TitleScreen
-  ├── 联网对战 → 首次: LoginScreen → 选人 → 匹配
-  │              再次: 直接进选人 [已登录]
-  ├── 本地对战 → 选人 (P1+P2 同键盘)
-  ├── 训练模式 → 即将推出
-  └── 退出
-```
+### 4. 训练模式 (badcae3)
+**问题:** TitleScreen「训练模式」显示 COMING SOON，无实际功能。
+**新增:** `TrainingScreen.java` — 独立训练画面：
+- 单人自由练习（P1 操作，P2 假人站立不动，击倒后自动回血）
+- 帧数据显示：当前姿态、动作类型、启动/判定/收尾帧进度条
+- 输入状态实时显示（↑↓←→ 拳踢特防）
+- 特殊资源追踪（影 CD / 武伤害积累 / 刚受伤积累）+ 冲刺次数
+- ESC 返回标题画面
+- `FyrenGame` 新增 `ScreenState.TRAINING` + `enterTrainingMode()`
+
+### 5. ECS 服务器状态验证
+- 8081 (Auth API): ✅ 注册/登录/JWT 正常
+- 9878 (WebSocket): ✅ 运行中
+- 9876 (UDP): ✅ 同进程
+- 8080 (Status): ❌ Connection refused（HttpStatusServer 挂了，不影响对战）
 
 ### 会话语录
 ```
+badcae3 feat: training mode — solo practice with frame data overlay, input display, dummy opponent
+d493892 feat: multi-layer parallax background renderer — procedural sky/mountains/bamboo/ground
+ba64c24 feat: stance-dependent stick figure animation — all 10 stances with unique poses
+7899ec8 docs: update CLAUDE.md + memory — EXE networking session 2026-06-20
 7099d39 feat: LoginScreen replaces NetworkSetupScreen — login once, server IP hidden, Chinese menus
 a6137a4 feat: EXE network setup + CJK font rendering
 ```
@@ -484,17 +500,18 @@ de17cf1 docs: P2P UDP hole punch + audio system design spec
 7ede323 fix: activeMatches/totalMatches counters + game-over detection + ResultPacket reporting
 ```
 
-## P1 待办（优先级顺序，更新于 2026-06-16）
+## P1 全部完成 ✅ (更新于 2026-06-20)
 
-1. ~~**主菜单/UI**~~ ✅ 已完成 — 6 个 Screen + FyrenGame 状态机 + fade 转场 (AbstractScreen/TitleScreen/CharacterSelectScreen/MatchingScreen/VsSplashScreen/ResultScreen)
-2. **背景/视觉美术资源** — 像素风竹林/山水，素材源 Ninja Adventure (CC0)，待下载+实现
-3. **训练模式** — 帧数据显示 + 无对手自由练习（TitleScreen 有入口但显示 COMING SOON）
-4. ~~**GWT WebSocket 网络对战**~~ ✅ 已完成 (2026-06-13)
+1. ~~**主菜单/UI**~~ ✅ — 6 个 Screen + FyrenGame 状态机 + fade 转场
+2. ~~**背景/视觉美术资源**~~ ✅ — 4 层程序化视差背景（天空/远山/竹林/地面）
+3. ~~**训练模式**~~ ✅ — 帧数据显示 + 输入状态 + 假人对战
+4. ~~**GWT WebSocket 网络对战**~~ ✅ (2026-06-13)
 
-**ECS 部署提醒：** 新 JAR 需部署到 `115.29.230.57` 以启用 P2P 和音效。启动命令：
-```cmd
-C:\Fyren\jre-minimal\bin\java -Djava.net.preferIPv4Stack=true -cp C:\Fyren\Fyren-1.0-SNAPSHOT.jar com.Fyren.GameMain server 9876 --daemon
-```
+**P2 待办（新）：**
+- ECS 部署新版 JAR（含姿态动画 + 背景 + 训练模式）
+- HttpStatusServer 8080 端口修复 & 重新部署
+- 背景图美术升级（目前程序化生成，可后续替换为像素风竹林素材）
+- 训练模式角色选择（目前默认 TAKESHI，后续加选人流程）
 
 ## Historical Session (2026-06-09) — Bug 修复 + ECS E2E
 
