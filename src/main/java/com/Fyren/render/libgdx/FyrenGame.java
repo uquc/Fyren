@@ -2,9 +2,12 @@ package com.Fyren.render.libgdx;
 
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator.FreeTypeFontParameter;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.Fyren.GameClient;
 import com.Fyren.game.FighterPreset;
@@ -19,7 +22,7 @@ import com.Fyren.game.GameWorld;
 public class FyrenGame extends ApplicationAdapter {
 
     // ---- Screen state ----
-    public enum ScreenState { TITLE, CHAR_SELECT, MATCHING, VS_SPLASH, FIGHT, RESULT }
+    public enum ScreenState { TITLE, NETWORK_SETUP, CHAR_SELECT, MATCHING, VS_SPLASH, FIGHT, RESULT }
 
     private ScreenState state;
     private AbstractScreen currentScreen;
@@ -87,7 +90,7 @@ public class FyrenGame extends ApplicationAdapter {
     public void create() {
         shapes = new ShapeRenderer();
         batch = new SpriteBatch();
-        font = new BitmapFont();
+        font = createCjkFont();
         audioManager = new AudioManager();
 
         spriteRenderer = new SpriteRenderer();
@@ -150,6 +153,19 @@ public class FyrenGame extends ApplicationAdapter {
     void goToTitle() {
         demoSelectingP1 = true;
         startTransition(ScreenState.TITLE);
+    }
+
+    /** 从 TitleScreen 进入网络设置画面 */
+    void goToNetworkSetup() {
+        startTransition(ScreenState.NETWORK_SETUP);
+    }
+
+    /** NetworkSetupScreen 认证成功后调用 — 切换到 NETWORK 模式并进入选人 */
+    public void switchToNetworkMode(GameClient client) {
+        this.mode = GameMode.NETWORK;
+        this.gameClient = client;
+        // 断开旧连接（如果有），确保后续 connect() 使用新的 serverHost
+        startTransition(ScreenState.CHAR_SELECT);
     }
 
     void enterNetworkMatch() {
@@ -311,12 +327,57 @@ public class FyrenGame extends ApplicationAdapter {
         shapes.end();
     }
 
+    /**
+     * 加载支持中文的 BitmapFont。
+     * 优先使用系统 CJK 字体（Windows: 微软雅黑），找不到则降级为默认 ASCII 字体。
+     */
+    private static BitmapFont createCjkFont() {
+        // 收集项目中所有中文字符
+        String appChinese = "風蓮服务器用户名密码登录注册联网设置成功失败正在连接返回标题"
+            + "请输入和至少个字符影武刚选择你的角色取消匹配等待对手中"
+            + "加载音效已胜败平局再战退出训练模式即将推出";
+
+        String characters = FreeTypeFontGenerator.DEFAULT_CHARS + appChinese;
+
+        // 尝试多个 CJK 字体路径
+        String[] fontPaths = {
+            "C:/Windows/Fonts/msyh.ttc",       // Windows 微软雅黑
+            "C:/Windows/Fonts/simsun.ttc",     // Windows 宋体
+            "/System/Library/Fonts/PingFang.ttc", // macOS
+            "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf", // Linux
+        };
+
+        for (String path : fontPaths) {
+            FileHandle fh = Gdx.files.absolute(path);
+            if (fh.exists()) {
+                try {
+                    FreeTypeFontGenerator generator = new FreeTypeFontGenerator(fh);
+                    FreeTypeFontParameter param = new FreeTypeFontParameter();
+                    param.size = 15;
+                    param.characters = characters;
+                    BitmapFont font = generator.generateFont(param);
+                    generator.dispose();
+                    System.out.println("[FyrenGame] CJK 字体已加载: " + path);
+                    return font;
+                } catch (Exception e) {
+                    System.err.println("[FyrenGame] 字体加载失败 " + path + ": " + e.getMessage());
+                }
+            }
+        }
+
+        System.out.println("[FyrenGame] 未找到 CJK 字体，使用默认字体（中文将无法显示）");
+        return new BitmapFont();
+    }
+
     private void switchToScreen(ScreenState newState) {
         state = newState;
 
         switch (newState) {
             case TITLE:
                 currentScreen = new TitleScreen(this, shapes, batch, font);
+                break;
+            case NETWORK_SETUP:
+                currentScreen = new NetworkSetupScreen(this, shapes, batch, font);
                 break;
             case CHAR_SELECT:
                 currentScreen = new CharacterSelectScreen(this, shapes, batch, font);

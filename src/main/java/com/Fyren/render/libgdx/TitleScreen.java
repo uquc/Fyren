@@ -103,7 +103,7 @@ public class TitleScreen extends AbstractScreen {
             selectionIndex = (selectionIndex + 1) % MENU_ITEMS.length;
         if (enter && !enterWasDown) {
             switch (selectionIndex) {
-                case 0: game.enterNetworkMatch(); break;
+                case 0: game.goToNetworkSetup(); break;
                 case 1: showComingSoon = true; comingSoonTimer = 1.5f; break;
                 case 2: Gdx.app.exit(); break;
             }
