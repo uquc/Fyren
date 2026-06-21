@@ -265,6 +265,13 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
 
     private void renderNetwork(float delta) {
         GwtFrameSyncManager fsm = networkClient.getFrameSyncManager();
+
+        // 在 fsm.tick() 之前捕获血量快照，否则结算后血量已变化，dmg 恒为 0
+        Fighter p1 = gameWorld.getPlayer1();
+        Fighter p2 = gameWorld.getPlayer2();
+        int hp1Before = p1.getHealth();
+        int hp2Before = p2.getHealth();
+
         if (fsm != null && fsm.isRunning()) {
             InputCommand cmd1 = inputHandler.samplePlayer1(frameNumber);
             networkClient.setCurrentLocalInput(cmd1);
@@ -272,12 +279,6 @@ public class FyrenGwtLauncher extends GwtApplication implements ApplicationListe
                     cmd1.punch, cmd1.kick, cmd1.special);
             fsm.tick(delta * 1000f);
         }
-
-        Fighter p1 = gameWorld.getPlayer1();
-        Fighter p2 = gameWorld.getPlayer2();
-
-        int hp1Before = p1.getHealth();
-        int hp2Before = p2.getHealth();
 
         if (!hitEffects.isInHitStop()) {
             frameNumber++;

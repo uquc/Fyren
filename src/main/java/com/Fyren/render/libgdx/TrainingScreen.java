@@ -38,12 +38,14 @@ public class TrainingScreen {
     private final BitmapFont font;
     private final SpriteBatch batch;
 
+    private final FighterPreset p1Preset;
     private int frameNumber = 0;
     private boolean koPlayed = false;
 
     private final Runnable onExit;
 
     public TrainingScreen(FighterPreset p1Preset, BitmapFont font, Runnable onExit) {
+        this.p1Preset = p1Preset;
         this.font = font;
         this.batch = new SpriteBatch();
         this.onExit = onExit;
@@ -89,9 +91,11 @@ public class TrainingScreen {
             frameNumber++;
         }
 
-        // 假人复活（被击倒后回满血）
+        // 假人复活（被击倒后完整重置：血量 + gameOver 标志 + 计时器）
         if (p2.getHealth() <= 0) {
-            p2.setHealth(p2.getMaxHealth());
+            gameWorld.setupPlayers(p1Preset, FighterPreset.KAGE);
+            frameNumber = 0;
+            koPlayed = false;
         }
 
         // 命中反馈
