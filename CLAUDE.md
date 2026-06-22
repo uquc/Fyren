@@ -262,37 +262,32 @@ Swing mode (legacy, retained):
   Swing Timer → GamePanel.repaint() → StickFigureRenderer
 ```
 
-## Current Session (2026-06-21) — P1 Bug 修复 + 测试员协作
+## Current Session (2026-06-22) — P2 全部完成 + 攻击框可视化
 
-### 测试员审查 (2026-06-21)
+### P2 核心交付
 
-测试员对最近 3 个 feature commit (ba64c24, d493892, badcae3) 进行了审查，发现 2 个 P1 Bug 并写了回归测试。
+- **JWT 匹配鉴权** — `MatchRequestPacket` 携带 JWT，`GameServer.verifyMatchAuth()` 验证签名/过期/sub/type。UDP 客户端必须验证，WebSocket Demo 豁免（Guest 模式）
+- **HTTP 热部署** — `curl -X POST --data-binary @JAR http://IP:8081/admin/deploy`，无需 RDP
+- **训练模式角色切换** — `1/2/3` 切换 P1，`Shift+1/2/3` 切换假人
+- **攻击框可视化** — 绿色受击框 + 红色攻击框（判定帧），ShapeRenderer 绘制
 
-### Bug #27 (P1): GWT 网络模式命中检测恒为 0 ✅ 已修复
+### 测试覆盖：10 → 33 条 (5 文件)
 
-**文件:** `FyrenGwtLauncher.java:279-287`
-**根因:** `hp1Before`/`hp2Before` 在 `fsm.tick()` **之后**捕获，此时血量已结算完毕，`dmg = hpBefore - hpAfter` 恒为 0。
-**影响:** GWT WebSocket 联机模式下命中反馈（hit-stop、打击火花、屏幕震动）完全失效。
-**修复:** 将 Fighter 引用 + 血量快照移到 `fsm.tick()` 之前（3 行位移）。
-**Commit:** `1f3adc5`
+| 新增 | 文件 | 覆盖 |
+|------|------|------|
+| +6 | `MatchRequestPacketTest` | JWT 序列化/向后兼容/边界 |
+| +7 | `CollisionSystemTest` | 命中/格挡/投技/相杀/分离 |
+| +10 | `FighterActionTest` | 状态机/STUN/资源/防御 |
 
-### Bug #28 (P1): 训练模式假人被 KO 后冻结 ✅ 已修复
-
-**文件:** `TrainingScreen.java:93-95`
-**根因:** 假人血量恢复时只调了 `p2.setHealth()`，`GameWorld.gameOver` 仍为 `true`，下帧 `update()` 直接 `return`。
-**影响:** 训练模式中击倒假人后，游戏世界完全冻结，只能 ESC 退出。
-**修复:** 改用 `gameWorld.setupPlayers(p1Preset, FighterPreset.KAGE)` 完整重置（血量 + gameOver + 计时器），同时重置 `frameNumber` 和 `koPlayed`。新增 `p1Preset` 字段。
-**测试:** `TrainingModeFreezeTest.java` — 2 个回归测试（测试员编写）。
-**Commit:** `1f3adc5`
-
-### 会话语录
+### Commit 记录
 ```
-1f3adc5 fix: P1 Bug #27 + #28 — GWT network hit detection always zero + training dummy KO freeze
-badcae3 feat: training mode — solo practice with frame data overlay, input display, dummy opponent
-d493892 feat: multi-layer parallax background renderer — procedural sky/mountains/bamboo/ground
-ba64c24 feat: stance-dependent stick figure animation — all 10 stances with unique poses
+ddd6694 feat: training mode hitbox visualization
+13f8d75 fix: P2 #1-#4 — GWT guest mode + Redis/JWT env vars + 23 new tests
+d619365 docs: add README.md
+c1bd190 feat: P2 — JWT match auth + training char select + deploy fix
 ```
 
+### 历史 (2026-06-21) — P1 Bug #27 + #28 修复
 ### 历史 (2026-06-20) — P1 全部完成：姿态动画 + 视差背景 + 训练模式
 
 ### 2. 姿态动画系统 (ba64c24)
@@ -535,11 +530,20 @@ de17cf1 docs: P2P UDP hole punch + audio system design spec
 3. ~~**训练模式**~~ ✅ — 帧数据显示 + 输入状态 + 假人对战
 4. ~~**GWT WebSocket 网络对战**~~ ✅ (2026-06-13)
 
-**P2 待办（新）：**
-- ECS 部署新版 JAR（含姿态动画 + 背景 + 训练模式）
-- HttpStatusServer 8080 端口修复 & 重新部署
-- 背景图美术升级（目前程序化生成，可后续替换为像素风竹林素材）
-- 训练模式角色选择（目前默认 TAKESHI，后续加选人流程）
+## P2 全部完成 ✅ (更新于 2026-06-22)
+
+| # | 项目 | 状态 | Commit |
+|---|------|------|--------|
+| 1 | ECS 部署新版 JAR | ✅ HTTP `/admin/deploy` 热部署 | `c1bd190` |
+| 2 | HttpStatusServer 8080 修复 | ✅ 重启恢复 | `c1bd190` |
+| 3 | JWT Token 匹配鉴权 | ✅ UDP 必须验证/WS Guest 豁免 | `c1bd190` |
+| 4 | 训练模式角色选择 | ✅ `1/2/3` 键切换 | `c1bd190` |
+| 5 | 背景图美术升级 | ❌ 跳过（素材尺寸不足）| — |
+| + | GWT 网页联网修复 | ✅ WS Guest 模式 | `13f8d75` |
+| + | Redis/JWT_SECRET env vars | ✅ restart.bat 已设定 | `13f8d75` |
+| + | 测试覆盖 10→33 条 | ✅ 3 新测试文件 | `13f8d75` |
+| + | 训练模式攻击框可视化 | ✅ ShapeRenderer 绿/红框 | `ddd6694` |
+| + | README.md | ✅ 项目概述/架构/键位 | `d619365` |
 
 ## Historical Session (2026-06-09) — Bug 修复 + ECS E2E
 
