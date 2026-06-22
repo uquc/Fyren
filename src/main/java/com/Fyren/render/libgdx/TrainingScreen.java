@@ -2,9 +2,11 @@ package com.Fyren.render.libgdx;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.Fyren.game.Fighter;
 import com.Fyren.game.FighterPreset;
@@ -37,6 +39,7 @@ public class TrainingScreen {
 
     private final BitmapFont font;
     private final SpriteBatch batch;
+    private final ShapeRenderer shapeRenderer;
 
     private FighterPreset p1Preset;
     private FighterPreset p2Preset;
@@ -50,6 +53,7 @@ public class TrainingScreen {
         this.p2Preset = FighterPreset.KAGE;
         this.font = font;
         this.batch = new SpriteBatch();
+        this.shapeRenderer = new ShapeRenderer();
         this.onExit = onExit;
 
         gameWorld = new GameWorld();
@@ -167,11 +171,46 @@ public class TrainingScreen {
         particleEffects.render(cam);
         hitEffects.render(cam);
 
+        // 攻击框可视化（训练模式专属）
+        renderHitboxes(cam, p1, p2);
+
         // HUD（训练模式简化：只显示 P1 血条 + 训练标签）
         hudRenderer.render(gameWorld, cam);
 
         // 帧数据叠加
         renderFrameData(p1, p2);
+    }
+
+    // === 攻击框可视化 ===
+
+    private void renderHitboxes(OrthographicCamera cam, Fighter p1, Fighter p2) {
+        shapeRenderer.setProjectionMatrix(cam.combined);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+
+        // P1 受击框（绿色）
+        drawHitbox(p1, Color.GREEN);
+        // P2 受击框（绿色）
+        drawHitbox(p2, Color.GREEN);
+
+        // 攻击框（红色）— 仅在判定帧显示
+        drawAttackBox(p1, Color.RED);
+        drawAttackBox(p2, Color.RED);
+
+        shapeRenderer.end();
+    }
+
+    private void drawHitbox(Fighter f, Color color) {
+        com.Fyren.game.Rect r = f.getHitbox();
+        if (r.width <= 0 || r.height <= 0) return;
+        shapeRenderer.setColor(color.r, color.g, color.b, 0.6f);
+        shapeRenderer.rect(r.x, r.y, r.width, r.height);
+    }
+
+    private void drawAttackBox(Fighter f, Color color) {
+        com.Fyren.game.Rect r = f.getAttackBox();
+        if (r.width <= 0 || r.height <= 0) return;
+        shapeRenderer.setColor(color.r, color.g, color.b, 0.7f);
+        shapeRenderer.rect(r.x, r.y, r.width, r.height);
     }
 
     // === 帧数据 & 输入显示 ===
@@ -186,12 +225,17 @@ public class TrainingScreen {
         float y = 530;
         float lineH = 18;
 
-        // 标题 + 角色选择提示
+        // 标题 + 提示
         font.setColor(0.7f, 0.7f, 1f, 1f);
         font.draw(batch, "== 训练模式 ==", x, y);
         font.setColor(0.5f, 0.5f, 0.7f, 0.8f);
         font.draw(batch, " [1/2/3]切换P1  [Shift+1/2/3]切换假人", x + 120, y);
-        y -= lineH + 4;
+        y -= lineH;
+        font.setColor(0.4f, 1f, 0.4f, 0.6f);
+        font.draw(batch, " ■ 受击框", x + 120, y);
+        font.setColor(1f, 0.4f, 0.4f, 0.6f);
+        font.draw(batch, "  ■ 攻击框(判定帧)", x + 205, y);
+        y -= 2;
 
         // P1 信息
         font.setColor(1f, 0.95f, 0.7f, 1f);
@@ -298,6 +342,7 @@ public class TrainingScreen {
         if (particleEffects != null) particleEffects.dispose();
         if (motionTrailEffect != null) motionTrailEffect.dispose();
         if (batch != null) batch.dispose();
+        if (shapeRenderer != null) shapeRenderer.dispose();
     }
 
     public GameWorld getGameWorld() { return gameWorld; }
