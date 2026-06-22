@@ -110,6 +110,10 @@ public class AuthHttpServer {
                     "echo Replacing JAR...\r\n" +
                     "move /y \"" + newJarPath + "\" \"" + jarPath + "\" >nul 2>&1\r\n" +
                     "echo Starting new server...\r\n" +
+                    "set REDIS_HOST=localhost\r\n" +
+                    "set REDIS_PORT=6379\r\n" +
+                    "set REDIS_PASSWORD=fyren_redis\r\n" +
+                    "set JWT_SECRET=fyren-jwt-secret-prod-2026\r\n" +
                     "java -Djava.net.preferIPv4Stack=true -cp \"" + jarPath + "\" com.Fyren.GameMain server 9876 --daemon > \"" + deployDir + "\\logs\\server-stdout.log\" 2>&1\r\n" +
                     "echo Server started.\r\n";
 

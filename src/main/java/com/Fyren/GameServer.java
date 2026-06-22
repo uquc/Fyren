@@ -169,13 +169,8 @@ public class GameServer {
         wsGameServer.setOnPacketReceived((packet, wsSession) -> {
             if (packet instanceof MatchRequestPacket) {
                 MatchRequestPacket mrp = (MatchRequestPacket) packet;
-                if (!verifyMatchAuth(mrp)) {
-                    System.out.printf("[GameServer] JWT验证失败(WS): playerId=%d\n", mrp.playerId);
-                    MatchResponsePacket errResp = new MatchResponsePacket(
-                            mrp.sequence, MatchResponsePacket.STATUS_ERROR, 0, 0, "", 0, 0);
-                    wsGameServer.sendToPlayer(errResp, mrp.playerId);
-                    return;
-                }
+                // WebSocket 客户端跳过 JWT 验证（网页 Demo 无登录流程，Guest 模式）
+                // 桌面 UDP 客户端仍需 JWT 验证（见上方 UDP handler）
                 // 创建或复用 UdpServer.ClientSession（MatchManager 需要）
                 UdpServer.ClientSession cs = udpServer.getClients().computeIfAbsent(
                     mrp.playerId, UdpServer.ClientSession::new);
