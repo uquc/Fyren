@@ -100,7 +100,6 @@ public class AuthHttpServer {
 
                 // 创建重启脚本
                 String restartBat = deployDir + "\\restart.bat";
-                String jreBin = deployDir + "\\jre-minimal\\bin\\java.exe";
                 String batContent =
                     "@echo off\r\n" +
                     "echo Waiting for old server to stop...\r\n" +
@@ -111,7 +110,7 @@ public class AuthHttpServer {
                     "echo Replacing JAR...\r\n" +
                     "move /y \"" + newJarPath + "\" \"" + jarPath + "\" >nul 2>&1\r\n" +
                     "echo Starting new server...\r\n" +
-                    "\"" + jreBin + "\" -cp \"" + jarPath + "\" com.Fyren.GameMain server 9876 --daemon > \"" + deployDir + "\\server.log\" 2>&1\r\n" +
+                    "java -Djava.net.preferIPv4Stack=true -cp \"" + jarPath + "\" com.Fyren.GameMain server 9876 --daemon > \"" + deployDir + "\\logs\\server-stdout.log\" 2>&1\r\n" +
                     "echo Server started.\r\n";
 
                 try (java.io.FileWriter fw = new java.io.FileWriter(restartBat)) {

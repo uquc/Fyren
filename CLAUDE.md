@@ -262,10 +262,38 @@ Swing mode (legacy, retained):
   Swing Timer → GamePanel.repaint() → StickFigureRenderer
 ```
 
-## Current Session (2026-06-20) — P1 全部完成：姿态动画 + 视差背景 + 训练模式
+## Current Session (2026-06-21) — P1 Bug 修复 + 测试员协作
 
-### 1. 上半场：EXE 联网 + 登录 + CJK 字体
-参见 Historical 下方 original session 内容。
+### 测试员审查 (2026-06-21)
+
+测试员对最近 3 个 feature commit (ba64c24, d493892, badcae3) 进行了审查，发现 2 个 P1 Bug 并写了回归测试。
+
+### Bug #27 (P1): GWT 网络模式命中检测恒为 0 ✅ 已修复
+
+**文件:** `FyrenGwtLauncher.java:279-287`
+**根因:** `hp1Before`/`hp2Before` 在 `fsm.tick()` **之后**捕获，此时血量已结算完毕，`dmg = hpBefore - hpAfter` 恒为 0。
+**影响:** GWT WebSocket 联机模式下命中反馈（hit-stop、打击火花、屏幕震动）完全失效。
+**修复:** 将 Fighter 引用 + 血量快照移到 `fsm.tick()` 之前（3 行位移）。
+**Commit:** `1f3adc5`
+
+### Bug #28 (P1): 训练模式假人被 KO 后冻结 ✅ 已修复
+
+**文件:** `TrainingScreen.java:93-95`
+**根因:** 假人血量恢复时只调了 `p2.setHealth()`，`GameWorld.gameOver` 仍为 `true`，下帧 `update()` 直接 `return`。
+**影响:** 训练模式中击倒假人后，游戏世界完全冻结，只能 ESC 退出。
+**修复:** 改用 `gameWorld.setupPlayers(p1Preset, FighterPreset.KAGE)` 完整重置（血量 + gameOver + 计时器），同时重置 `frameNumber` 和 `koPlayed`。新增 `p1Preset` 字段。
+**测试:** `TrainingModeFreezeTest.java` — 2 个回归测试（测试员编写）。
+**Commit:** `1f3adc5`
+
+### 会话语录
+```
+1f3adc5 fix: P1 Bug #27 + #28 — GWT network hit detection always zero + training dummy KO freeze
+badcae3 feat: training mode — solo practice with frame data overlay, input display, dummy opponent
+d493892 feat: multi-layer parallax background renderer — procedural sky/mountains/bamboo/ground
+ba64c24 feat: stance-dependent stick figure animation — all 10 stances with unique poses
+```
+
+### 历史 (2026-06-20) — P1 全部完成：姿态动画 + 视差背景 + 训练模式
 
 ### 2. 姿态动画系统 (ba64c24)
 **问题:** 所有动作共用同一套 stick figure 姿势，缺乏反馈感。

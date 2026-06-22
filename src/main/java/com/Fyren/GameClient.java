@@ -261,7 +261,8 @@ public class GameClient {
         setState(ClientState.MATCHING);
 
         MatchRequestPacket req = new MatchRequestPacket(
-                nextSequence(), localPlayerId, playerRating.getRating(), preset.ordinal());
+                nextSequence(), localPlayerId, playerRating.getRating(), preset.ordinal(),
+                accessToken != null ? accessToken : "");
         udpClient.sendReliable(req);
 
         System.out.println("[GameClient] 已发送匹配请求 (rating=" + playerRating.getRating() + ")");

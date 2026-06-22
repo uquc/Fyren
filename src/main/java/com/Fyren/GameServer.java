@@ -41,6 +41,7 @@ public class GameServer {
     private WsGameServer wsGameServer;
     private final Set<Integer> wsClientIds = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private java.util.concurrent.ScheduledExecutorService maintenanceScheduler;
+    private JwtTokenProvider jwtProvider;
 
     // 去重：避免双方客户端都上报 ResultPacket 导致重复统计
     private final Set<String> reportedMatches = Collections.newSetFromMap(new ConcurrentHashMap<>());
@@ -58,7 +59,7 @@ public class GameServer {
         redisService.init();
 
         // 初始化 JWT + Auth
-        JwtTokenProvider jwtProvider = new JwtTokenProvider();
+        this.jwtProvider = new JwtTokenProvider();
         AuthService authService = new AuthService(redisService, jwtProvider);
         AuthMiddleware authMiddleware = new AuthMiddleware(jwtProvider);
 
@@ -71,7 +72,15 @@ public class GameServer {
         // 设置数据包处理
         udpServer.setOnPacketReceived((packet, session) -> {
             if (packet instanceof MatchRequestPacket) {
-                matchManager.handleMatchRequest((MatchRequestPacket) packet, session);
+                MatchRequestPacket mrp = (MatchRequestPacket) packet;
+                if (!verifyMatchAuth(mrp)) {
+                    System.out.printf("[GameServer] JWT验证失败: playerId=%d\n", mrp.playerId);
+                    MatchResponsePacket errResp = new MatchResponsePacket(
+                            mrp.sequence, MatchResponsePacket.STATUS_ERROR, 0, 0, "", 0, 0);
+                    udpServer.sendReliableTo(errResp, session.address);
+                    return;
+                }
+                matchManager.handleMatchRequest(mrp, session);
             } else if (packet instanceof ResultPacket) {
                 ResultPacket rp = (ResultPacket) packet;
                 // 去重：同一场比赛双方客户端都可能上报，只处理首次
@@ -160,6 +169,13 @@ public class GameServer {
         wsGameServer.setOnPacketReceived((packet, wsSession) -> {
             if (packet instanceof MatchRequestPacket) {
                 MatchRequestPacket mrp = (MatchRequestPacket) packet;
+                if (!verifyMatchAuth(mrp)) {
+                    System.out.printf("[GameServer] JWT验证失败(WS): playerId=%d\n", mrp.playerId);
+                    MatchResponsePacket errResp = new MatchResponsePacket(
+                            mrp.sequence, MatchResponsePacket.STATUS_ERROR, 0, 0, "", 0, 0);
+                    wsGameServer.sendToPlayer(errResp, mrp.playerId);
+                    return;
+                }
                 // 创建或复用 UdpServer.ClientSession（MatchManager 需要）
                 UdpServer.ClientSession cs = udpServer.getClients().computeIfAbsent(
                     mrp.playerId, UdpServer.ClientSession::new);
@@ -209,6 +225,28 @@ public class GameServer {
         System.out.println("  Redis: " + (redisService.isAvailable() ? "已连接" : "内存模式"));
         System.out.println("  输入 'stop' 停止服务器");
         System.out.println("====================================");
+    }
+
+    /**
+     * 验证匹配请求的 JWT token。
+     * @return true = 通过，false = token 无效/过期/playerId不匹配
+     */
+    private boolean verifyMatchAuth(MatchRequestPacket packet) {
+        String token = packet.jwtToken;
+        if (token == null || token.isEmpty()) {
+            return false;
+        }
+        io.jsonwebtoken.Claims claims = jwtProvider.parseTokenSafe(token);
+        if (claims == null) {
+            return false;
+        }
+        // 校验 token 类型必须是 access（防止用 refresh token 冒充）
+        String type = jwtProvider.getTokenType(claims);
+        if (!"access".equals(type)) {
+            return false;
+        }
+        int tokenUserId = jwtProvider.getUserId(claims);
+        return tokenUserId == packet.playerId;
     }
 
     /**

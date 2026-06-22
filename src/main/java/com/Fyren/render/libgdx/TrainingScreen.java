@@ -38,7 +38,8 @@ public class TrainingScreen {
     private final BitmapFont font;
     private final SpriteBatch batch;
 
-    private final FighterPreset p1Preset;
+    private FighterPreset p1Preset;
+    private FighterPreset p2Preset;
     private int frameNumber = 0;
     private boolean koPlayed = false;
 
@@ -46,12 +47,13 @@ public class TrainingScreen {
 
     public TrainingScreen(FighterPreset p1Preset, BitmapFont font, Runnable onExit) {
         this.p1Preset = p1Preset;
+        this.p2Preset = FighterPreset.KAGE;
         this.font = font;
         this.batch = new SpriteBatch();
         this.onExit = onExit;
 
         gameWorld = new GameWorld();
-        gameWorld.setupPlayers(p1Preset, FighterPreset.KAGE); // P2 影（假人）
+        gameWorld.setupPlayers(p1Preset, p2Preset);
 
         inputHandler = new GdxInputHandler();
         cameraController = new CameraController(960, 540);
@@ -69,6 +71,30 @@ public class TrainingScreen {
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             onExit.run();
             return;
+        }
+
+        // 角色切换
+        boolean shift = Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)
+                || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT);
+        FighterPreset switched = null;
+        boolean switchP1 = false;
+        for (int i = 0; i < 3; i++) {
+            int key = Input.Keys.NUM_1 + i;
+            if (Gdx.input.isKeyJustPressed(key)) {
+                switched = FighterPreset.values()[i];
+                switchP1 = !shift;
+                break;
+            }
+        }
+        if (switched != null) {
+            if (switchP1) {
+                p1Preset = switched;
+            } else {
+                p2Preset = switched;
+            }
+            gameWorld.setupPlayers(p1Preset, p2Preset);
+            frameNumber = 0;
+            koPlayed = false;
         }
 
         // P1 输入
@@ -93,7 +119,7 @@ public class TrainingScreen {
 
         // 假人复活（被击倒后完整重置：血量 + gameOver 标志 + 计时器）
         if (p2.getHealth() <= 0) {
-            gameWorld.setupPlayers(p1Preset, FighterPreset.KAGE);
+            gameWorld.setupPlayers(p1Preset, p2Preset);
             frameNumber = 0;
             koPlayed = false;
         }
@@ -160,15 +186,17 @@ public class TrainingScreen {
         float y = 530;
         float lineH = 18;
 
-        // 标题
+        // 标题 + 角色选择提示
         font.setColor(0.7f, 0.7f, 1f, 1f);
         font.draw(batch, "== 训练模式 ==", x, y);
+        font.setColor(0.5f, 0.5f, 0.7f, 0.8f);
+        font.draw(batch, " [1/2/3]切换P1  [Shift+1/2/3]切换假人", x + 120, y);
         y -= lineH + 4;
 
         // P1 信息
         font.setColor(1f, 0.95f, 0.7f, 1f);
         font.draw(batch, String.format("P1 [%s] HP:%d/%d",
-                p1.getPreset().name(), p1.getHealth(), p1.getMaxHealth()), x, y);
+                p1.getPreset().getDisplayName(), p1.getHealth(), p1.getMaxHealth()), x, y);
         y -= lineH;
 
         font.setColor(0.85f, 0.85f, 0.85f, 1f);
@@ -256,7 +284,8 @@ public class TrainingScreen {
 
         // 假人状态
         font.setColor(0.7f, 0.7f, 0.7f, 0.7f);
-        font.draw(batch, String.format("假人: %s HP:%d", p2.getStance(), p2.getHealth()), x, y);
+        font.draw(batch, String.format("假人[%s]: %s HP:%d",
+                p2.getPreset().getDisplayName(), p2.getStance(), p2.getHealth()), x, y);
 
         font.getData().setScale(1.0f);
         batch.end();

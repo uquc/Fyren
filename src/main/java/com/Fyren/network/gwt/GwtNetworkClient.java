@@ -48,6 +48,7 @@ public class GwtNetworkClient {
     private int sequenceCounter = 0;
     private InputCommand currentLocalInput = null;
     private GameEventCallback callback;
+    private String accessToken;
 
     public GwtNetworkClient(String serverHost, int serverWsPort, int localPlayerId, FighterPreset preset) {
         this.serverHost = serverHost;
@@ -112,7 +113,8 @@ public class GwtNetworkClient {
         setState(ClientState.MATCHING);
 
         MatchRequestPacket req = new MatchRequestPacket(
-                nextSequence(), localPlayerId, playerRating.getRating(), preset.ordinal());
+                nextSequence(), localPlayerId, playerRating.getRating(), preset.ordinal(),
+                accessToken != null ? accessToken : "");
         sendPacket(req);
         System.out.println("[GwtClient] 匹配请求已发送 (rating=" + playerRating.getRating() + ")");
     }
@@ -294,4 +296,6 @@ public class GwtNetworkClient {
     public GameWorld getGameWorld() { return gameWorld; }
     public GwtFrameSyncManager getFrameSyncManager() { return frameSyncManager; }
     public void setCallback(GameEventCallback cb) { this.callback = cb; }
+    public void setAccessToken(String token) { this.accessToken = token; }
+    public String getAccessToken() { return accessToken; }
 }
