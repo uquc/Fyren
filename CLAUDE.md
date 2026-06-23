@@ -1,8 +1,10 @@
 # CLAUDE.md — [role: developer]
 
-**Who I am:** 开发者 Claude。职责：实现功能、修复 Bug、重构、写业务代码。可以修改 `src/main/` 下任何文件。
+**Who I am:** 开发者 Claude。当前阶段核心职责：**(1) 面试技术讲解** — 逐模块精读代码、讲解设计原理、回答追问；(2) **Bug 修复** — 接收测试员 Bug 报告，定位根因并修复。可以修改 `src/main/` 下任何文件。
 
 **Counterpart:** [[tester-claude-md]] — 测试员 Claude 的独立指令集，存储于 memory/。
+
+**Interview prep docs:** `docs/interview-prep/` — 五讲技术深讲（帧同步/网络/P2P/匹配/JWT认证/战斗核心/跨平台渲染），面试前必读。
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -262,18 +264,25 @@ Swing mode (legacy, retained):
   Swing Timer → GamePanel.repaint() → StickFigureRenderer
 ```
 
-## Current Session (2026-06-22) — P2 全部完成 + 攻击框可视化
+## Current Session (2026-06-23) — 测试扩展：33→85 条 + 测试员审查通过
 
-### P2 核心交付
+### P2 核心交付（回顾）
 
 - **JWT 匹配鉴权** — `MatchRequestPacket` 携带 JWT，`GameServer.verifyMatchAuth()` 验证签名/过期/sub/type。UDP 客户端必须验证，WebSocket Demo 豁免（Guest 模式）
 - **HTTP 热部署** — `curl -X POST --data-binary @JAR http://IP:8081/admin/deploy`，无需 RDP
 - **训练模式角色切换** — `1/2/3` 切换 P1，`Shift+1/2/3` 切换假人
 - **攻击框可视化** — 绿色受击框 + 红色攻击框（判定帧），ShapeRenderer 绘制
 
-### 测试覆盖：10 → 33 条 (5 文件)
+### 测试覆盖：33 → 85 条 (9 文件)
 
-| 新增 | 文件 | 覆盖 |
+| 新增（测试员 6/23） | 文件 | 覆盖 |
+|------|------|------|
+| +10 | `InputCodecTest` | encode↔decode 往返、位标志、playerId/frameNumber 打包 |
+| +15 | `MatchmakerTest` | 队列管理、扩散窗口、匹配回调、防重复匹配 |
+| +8 | `GameStateSnapshotTest` | 全部字段 save/restore 保真、边缘情况 |
+| +19 | `JwtTokenProviderTest` | token 生成/验证/篡改/过期/类型区分 |
+
+| 已有（开发者 P2） | 文件 | 覆盖 |
 |------|------|------|
 | +6 | `MatchRequestPacketTest` | JWT 序列化/向后兼容/边界 |
 | +7 | `CollisionSystemTest` | 命中/格挡/投技/相杀/分离 |
@@ -281,6 +290,7 @@ Swing mode (legacy, retained):
 
 ### Commit 记录
 ```
+44da2a8 docs: update CLAUDE.md + memory system — P2 complete, clear dev/tester role separation
 ddd6694 feat: training mode hitbox visualization
 13f8d75 fix: P2 #1-#4 — GWT guest mode + Redis/JWT env vars + 23 new tests
 d619365 docs: add README.md
@@ -542,6 +552,7 @@ de17cf1 docs: P2P UDP hole punch + audio system design spec
 | + | GWT 网页联网修复 | ✅ WS Guest 模式 | `13f8d75` |
 | + | Redis/JWT_SECRET env vars | ✅ restart.bat 已设定 | `13f8d75` |
 | + | 测试覆盖 10→33 条 | ✅ 3 新测试文件 | `13f8d75` |
+| + | 测试覆盖 33→85 条（测试员） | ✅ 4 新测试文件 | 2026-06-23 |
 | + | 训练模式攻击框可视化 | ✅ ShapeRenderer 绿/红框 | `ddd6694` |
 | + | README.md | ✅ 项目概述/架构/键位 | `d619365` |
 
