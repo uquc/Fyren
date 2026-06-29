@@ -264,7 +264,28 @@ Swing mode (legacy, retained):
   Swing Timer → GamePanel.repaint() → StickFigureRenderer
 ```
 
-## Current Session (2026-06-23) — 测试扩展：33→85 条 + 测试员审查通过
+## Current Session (2026-06-30) — Web 版 HUD 修复 + 数值平衡调整
+
+### HUD 血条修复 (`HudRenderer.java`)
+- **血条渲染层级** — 血条移到 `render()` 最末尾绘制（计时器/特技灯/胜负画面之后），确保不被覆盖
+- **特技指示灯修复** — 原白色圆为 Filled 模式，覆盖了彩色圆 → 改为 Line 描边
+- 涉及 Web 端（GWT/WebGL）和桌面端（libGDX）共用同一份 HudRenderer
+
+### 数值平衡调整
+- **格挡减伤**: 50% → 90%（`CollisionSystem.java` + `Fighter.java`, `damage/2` → `Math.max(1, damage/10)`）
+- **角色血量**:
+  | 角色 | 旧 | 新 |
+  |------|----|----|
+  | KAGE (影) | 80 | 180 |
+  | TAKESHI (武) | 100 | 200 |
+  | GOU (刚) | 130 | 220 |
+
+### Commit
+```
+6215a1f fix: HUD blood bar z-order + special indicator, block 90% DR, HP rebalance (KAGE 180, TAKESHI 200, GOU 220)
+```
+
+## Historical Session (2026-06-23) — 测试扩展：33→85 条 + 测试员审查通过
 
 ### P2 核心交付（回顾）
 
