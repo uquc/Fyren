@@ -73,7 +73,7 @@ public class CollisionSystem {
             defender.setAudioBlockedTrigger();
         }
         // 提前计算实际伤害，避免 takeDamage() 清除 isBlocking 后误判
-        int effectiveDmg = defender.isBlocking() && !isThrow ? baseDmg / 2 : baseDmg;
+        int effectiveDmg = defender.isBlocking() && !isThrow ? Math.max(1, baseDmg / 10) : baseDmg;
         defender.takeDamage(baseDmg, isThrow);
 
         attacker.onDamageDealt(baseDmg);

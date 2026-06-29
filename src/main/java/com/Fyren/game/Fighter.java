@@ -344,7 +344,7 @@ public class Fighter {
         this.lastRawDamageReceived = damage; // 记录原始伤害（减免前），供 hit-stop 判断
         int actualDamage = damage;
         if (!isThrow && isBlocking) {
-            actualDamage = damage / 2;
+            actualDamage = Math.max(1, damage / 10);
         }
         this.health -= actualDamage;
         if (this.health < 0) this.health = 0;

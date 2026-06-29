@@ -53,12 +53,8 @@ public class HudRenderer {
         displayHp1 += (p1.getHealth() - displayHp1) * 0.12f;
         displayHp2 += (p2.getHealth() - displayHp2) * 0.12f;
 
-        // 血条（屏幕固定坐标，使用 OrthographicCamera 的 viewport）
         float viewW = camera.viewportWidth;
         float viewH = camera.viewportHeight;
-
-        drawHealthBar(40, viewH - 60, p1, displayHp1);
-        drawHealthBar(viewW - 40 - HEALTH_BAR_W, viewH - 60, p2, displayHp2);
 
         // 计时器（手动格式化，GWT 不支持 String.format）
         int timeLeft = Math.max(0, world.getTimerFrames() / 60);
@@ -67,14 +63,18 @@ public class HudRenderer {
         String timeStr = pad2(minutes) + ":" + pad2(seconds);
         drawCenteredText(timeStr, viewW / 2f, viewH - 30, 1.2f);
 
-        // 特殊技指示灯
+        // 特殊技指示灯（修复：白色圆被绘制为填充模式覆盖了彩色圆）
         drawSpecialIndicator(40, viewH - 90, p1);
         drawSpecialIndicator(viewW - 40 - 20, viewH - 90, p2);
 
-        // 胜负画面
+        // 胜负画面（血条之前绘制，防止覆盖）
         if (world.isGameOver()) {
             drawGameOver(world.getWinnerId(), viewW / 2f, viewH / 2f + 30);
         }
+
+        // 血条最后绘制，确保不被其他 HUD 元素覆盖
+        drawHealthBar(40, viewH - 60, p1, displayHp1);
+        drawHealthBar(viewW - 40 - HEALTH_BAR_W, viewH - 60, p2, displayHp2);
     }
 
     // ========== 内部绘制方法 ==========
@@ -143,6 +143,9 @@ public class HudRenderer {
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         shapes.setColor(indicatorColor);
         shapes.circle(x + 10, y, 7);
+        shapes.end();
+
+        shapes.begin(ShapeRenderer.ShapeType.Line);
         shapes.setColor(Color.WHITE);
         shapes.circle(x + 10, y, 7);
         shapes.end();

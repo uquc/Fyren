@@ -7,9 +7,9 @@ package com.Fyren.game;
  * 三个可用角色: KAGE (影, 快速轻量), TAKESHI (武, 均衡), GOU (刚, 重型慢速)
  */
 public enum FighterPreset {
-    KAGE("影", 80, 15, 45, 5.5f, 2.2f, 40, 90, 120, 70, 2, 0xFF2255CC),
-    TAKESHI("武", 100, 10, 50, 4.0f, 1.8f, 50, 100, 90, 50, 3, 0xFFCC3333),
-    GOU("刚", 130, 12, 60, 2.8f, 1.2f, 60, 110, 70, 40, 5, 0xFF2D6A4F);
+    KAGE("影", 180, 15, 45, 5.5f, 2.2f, 40, 90, 120, 70, 2, 0xFF2255CC),
+    TAKESHI("武", 200, 10, 50, 4.0f, 1.8f, 50, 100, 90, 50, 3, 0xFFCC3333),
+    GOU("刚", 220, 12, 60, 2.8f, 1.2f, 60, 110, 70, 40, 5, 0xFF2D6A4F);
 
     private final String displayName;
     private final int maxHealth;
